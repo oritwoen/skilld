@@ -5,6 +5,7 @@
 import type { FeaturesConfig } from '../../core/config.ts'
 import type { CustomPrompt, PromptSection, SectionContext } from './optional/index.ts'
 import { dirname } from 'pathe'
+import { getPackageRules } from '../../sources/package-registry.ts'
 import { apiChangesSection, apiSection, bestPracticesSection, customSection } from './optional/index.ts'
 
 export type SkillSection = 'api-changes' | 'best-practices' | 'api' | 'custom'
@@ -94,7 +95,7 @@ function generateImportantBlock({ packageName, hasIssues, hasDiscussions, hasRel
     rows.push(['Discussions', `\`${skillDir}/.skilld/discussions/\``])
   }
   if (hasChangelog) {
-    rows.push(['Changelog', `\`${skillDir}/.skilld/pkg/${hasChangelog}\``])
+    rows.push(['Changelog', `\`${skillDir}/.skilld/${hasChangelog}\``])
   }
   if (hasReleases) {
     rows.push(['Releases', `\`${skillDir}/.skilld/releases/\``])
@@ -173,16 +174,19 @@ export function buildSectionPrompt(opts: BuildSkillPromptOptions & { section: Sk
   const versionContext = version ? ` v${version}` : ''
   const preamble = buildPreamble({ ...opts, versionContext })
 
-  const ctx: SectionContext = { packageName, version, hasIssues, hasDiscussions, hasReleases, hasChangelog, features: opts.features, enabledSectionCount: opts.enabledSectionCount }
+  const hasDocs = !!opts.docFiles?.some(f => f.includes('/docs/'))
+  const ctx: SectionContext = { packageName, version, hasIssues, hasDiscussions, hasReleases, hasChangelog, hasDocs, features: opts.features, enabledSectionCount: opts.enabledSectionCount }
   const sectionDef = getSectionDef(section, ctx, customPrompt)
   if (!sectionDef)
     return ''
 
   const outputFile = SECTION_OUTPUT_FILES[section]
+  const packageRules = getPackageRules(packageName)
   const rules = [
     ...(sectionDef.rules ?? []),
     '- Link to exact source file where you found info',
-    '- TypeScript only, Vue uses `<script setup lang="ts">`',
+    '- TypeScript only',
+    ...packageRules.map(r => `- ${r}`),
     '- Imperative voice ("Use X" not "You should use X")',
     `- **NEVER fetch external URLs.** All information is in the local \`./.skilld/\` directory. Use Read, Glob${opts.features?.search !== false ? ', and `skilld search`' : ''} only.`,
     '- **Do NOT use Task tool or spawn subagents.** Work directly.',

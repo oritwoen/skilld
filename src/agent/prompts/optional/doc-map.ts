@@ -1,16 +1,17 @@
 import type { PromptSection, ReferenceWeight, SectionContext } from './types.ts'
 import { maxLines } from './budget.ts'
 
-export function apiSection({ hasReleases, hasChangelog, hasIssues, hasDiscussions, enabledSectionCount }: SectionContext): PromptSection {
+export function apiSection({ hasReleases, hasChangelog, hasDocs, hasIssues, hasDiscussions, enabledSectionCount }: SectionContext): PromptSection {
   // Build reference weights — only include available references
-  const referenceWeights: ReferenceWeight[] = [
-    { name: 'Docs', path: './.skilld/docs/', score: 10, useFor: 'Primary source — scan all doc pages for export names' },
-  ]
+  const referenceWeights: ReferenceWeight[] = []
+  if (hasDocs) {
+    referenceWeights.push({ name: 'Docs', path: './.skilld/docs/', score: 10, useFor: 'Primary source — scan all doc pages for export names' })
+  }
   if (hasReleases) {
     referenceWeights.push({ name: 'Releases', path: './.skilld/releases/_INDEX.md', score: 5, useFor: 'New APIs added in recent versions' })
   }
   if (hasChangelog) {
-    referenceWeights.push({ name: 'Changelog', path: `./.skilld/pkg/${hasChangelog}`, score: 5, useFor: 'New APIs added in recent versions' })
+    referenceWeights.push({ name: 'Changelog', path: `./.skilld/${hasChangelog}`, score: 5, useFor: 'New APIs added in recent versions' })
   }
   referenceWeights.push({ name: 'Package', path: './.skilld/pkg/', score: 4, useFor: 'Check exports field and entry points' })
   if (hasIssues) {

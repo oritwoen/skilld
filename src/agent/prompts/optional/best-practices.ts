@@ -1,7 +1,7 @@
 import type { PromptSection, ReferenceWeight, SectionContext } from './types.ts'
 import { maxItems, maxLines } from './budget.ts'
 
-export function bestPracticesSection({ packageName, hasIssues, hasDiscussions, hasReleases, hasChangelog, features, enabledSectionCount }: SectionContext): PromptSection {
+export function bestPracticesSection({ packageName, hasIssues, hasDiscussions, hasReleases, hasChangelog, hasDocs, features, enabledSectionCount }: SectionContext): PromptSection {
   const searchHints: string[] = []
   if (features?.search !== false) {
     searchHints.push(
@@ -11,9 +11,10 @@ export function bestPracticesSection({ packageName, hasIssues, hasDiscussions, h
   }
 
   // Build reference weights — only include available references
-  const referenceWeights: ReferenceWeight[] = [
-    { name: 'Docs', path: './.skilld/docs/', score: 9, useFor: 'Primary source — recommended patterns, configuration, idiomatic usage' },
-  ]
+  const referenceWeights: ReferenceWeight[] = []
+  if (hasDocs) {
+    referenceWeights.push({ name: 'Docs', path: './.skilld/docs/', score: 9, useFor: 'Primary source — recommended patterns, configuration, idiomatic usage' })
+  }
   if (hasDiscussions) {
     referenceWeights.push({ name: 'Discussions', path: './.skilld/discussions/_INDEX.md', score: 8, useFor: 'Q&A with accepted answers reveal "the right way"' })
   }
@@ -24,7 +25,7 @@ export function bestPracticesSection({ packageName, hasIssues, hasDiscussions, h
     referenceWeights.push({ name: 'Releases', path: './.skilld/releases/_INDEX.md', score: 3, useFor: 'Only for new patterns introduced in recent versions' })
   }
   if (hasChangelog) {
-    referenceWeights.push({ name: 'Changelog', path: `./.skilld/pkg/${hasChangelog}`, score: 3, useFor: 'Only for new patterns introduced in recent versions' })
+    referenceWeights.push({ name: 'Changelog', path: `./.skilld/${hasChangelog}`, score: 3, useFor: 'Only for new patterns introduced in recent versions' })
   }
 
   return {

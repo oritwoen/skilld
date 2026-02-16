@@ -14,6 +14,8 @@ export interface BlogRelease {
 export interface PackageEntry {
   filePatterns?: string[]
   primary?: boolean
+  /** Extra rules injected into skill generation prompts */
+  rules?: string[]
 }
 
 export interface RepoEntry {
@@ -59,7 +61,7 @@ const REPO_REGISTRY: Record<string, RepoEntry> = {
     docsPath: 'src',
     homepage: 'https://vuejs.org',
     packages: {
-      'vue': { primary: true, filePatterns: ['*.vue'] },
+      'vue': { primary: true, filePatterns: ['*.vue'], rules: ['ALWAYS use `<script setup lang="ts">`'] },
       '@vue/compiler-core': {},
       '@vue/compiler-dom': {},
       '@vue/reactivity': {},
@@ -114,7 +116,7 @@ const REPO_REGISTRY: Record<string, RepoEntry> = {
     owner: 'sveltejs',
     repo: 'svelte',
     packages: {
-      svelte: { primary: true, filePatterns: ['*.svelte'] },
+      svelte: { primary: true, filePatterns: ['*.svelte'], rules: ['ALWAYS use runes syntax ($state, $derived, $effect, $props)'] },
     },
   },
 
@@ -450,6 +452,13 @@ export function getRepoEntry(repoKey: string): RepoEntry | undefined {
 
 export function getRepoKeyForPackage(packageName: string): string | undefined {
   return PACKAGE_TO_REPO_MAP[packageName]
+}
+
+export function getPackageRules(packageName: string): string[] {
+  const repoKey = PACKAGE_TO_REPO_MAP[packageName]
+  if (!repoKey)
+    return []
+  return REPO_REGISTRY[repoKey]?.packages[packageName]?.rules ?? []
 }
 
 export function getRelatedPackages(packageName: string): string[] {

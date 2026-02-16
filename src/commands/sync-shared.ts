@@ -240,11 +240,11 @@ export function detectChangelog(pkgDir: string | null, cacheDir?: string): strin
   if (pkgDir) {
     const found = ['CHANGELOG.md', 'changelog.md'].find(f => existsSync(join(pkgDir, f)))
     if (found)
-      return found
+      return `pkg/${found}`
   }
   // Also check cached releases/CHANGELOG.md (fetched from GitHub)
   if (cacheDir && existsSync(join(cacheDir, 'releases', 'CHANGELOG.md')))
-    return 'CHANGELOG.md'
+    return 'releases/CHANGELOG.md'
   return false
 }
 

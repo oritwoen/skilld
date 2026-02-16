@@ -24,6 +24,8 @@ export interface SectionContext {
   hasDiscussions?: boolean
   hasReleases?: boolean
   hasChangelog?: string | false
+  /** Whether a docs directory exists in .skilld/ */
+  hasDocs?: boolean
   features?: FeaturesConfig
   /** Total number of enabled sections — used to adjust per-section line budgets */
   enabledSectionCount?: number

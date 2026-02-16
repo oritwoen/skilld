@@ -1,7 +1,7 @@
 import type { PromptSection, ReferenceWeight, SectionContext } from './types.ts'
 import { maxItems, maxLines } from './budget.ts'
 
-export function apiChangesSection({ packageName, version, hasReleases, hasChangelog, hasIssues, hasDiscussions, features, enabledSectionCount }: SectionContext): PromptSection {
+export function apiChangesSection({ packageName, version, hasReleases, hasChangelog, hasDocs, hasIssues, hasDiscussions, features, enabledSectionCount }: SectionContext): PromptSection {
   const [, major, minor] = version?.match(/^(\d+)\.(\d+)/) ?? []
 
   // Search hints for the task text (specific queries to run)
@@ -36,9 +36,11 @@ export function apiChangesSection({ packageName, version, hasReleases, hasChange
     referenceWeights.push({ name: 'Releases', path: './.skilld/releases/_INDEX.md', score: 9, useFor: 'Primary source — version headings list new/deprecated/renamed APIs' })
   }
   if (hasChangelog) {
-    referenceWeights.push({ name: 'Changelog', path: `./.skilld/pkg/${hasChangelog}`, score: 9, useFor: 'Features/Breaking Changes sections per version' })
+    referenceWeights.push({ name: 'Changelog', path: `./.skilld/${hasChangelog}`, score: 9, useFor: 'Features/Breaking Changes sections per version' })
   }
-  referenceWeights.push({ name: 'Docs', path: './.skilld/docs/', score: 4, useFor: 'Only migration guides or upgrade pages' })
+  if (hasDocs) {
+    referenceWeights.push({ name: 'Docs', path: './.skilld/docs/', score: 4, useFor: 'Only migration guides or upgrade pages' })
+  }
   if (hasIssues) {
     referenceWeights.push({ name: 'Issues', path: './.skilld/issues/_INDEX.md', score: 2, useFor: 'Skip unless searching a specific removed API' })
   }

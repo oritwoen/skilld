@@ -230,18 +230,18 @@ describe('sync-shared', () => {
       expect(detectChangelog(null)).toBe(false)
     })
 
-    it('returns CHANGELOG.md when it exists', () => {
+    it('returns pkg/CHANGELOG.md when it exists', () => {
       vi.mocked(existsSync).mockImplementation((p: any) =>
         String(p).endsWith('CHANGELOG.md'),
       )
-      expect(detectChangelog('/pkg')).toBe('CHANGELOG.md')
+      expect(detectChangelog('/pkg')).toBe('pkg/CHANGELOG.md')
     })
 
-    it('returns changelog.md when only lowercase exists', () => {
+    it('returns pkg/changelog.md when only lowercase exists', () => {
       vi.mocked(existsSync).mockImplementation((p: any) =>
         String(p).endsWith('changelog.md') && !String(p).endsWith('CHANGELOG.md'),
       )
-      expect(detectChangelog('/pkg')).toBe('changelog.md')
+      expect(detectChangelog('/pkg')).toBe('pkg/changelog.md')
     })
 
     it('returns false when neither exists', () => {
@@ -253,14 +253,14 @@ describe('sync-shared', () => {
       vi.mocked(existsSync).mockImplementation((p: any) =>
         String(p).includes('releases/CHANGELOG.md'),
       )
-      expect(detectChangelog(null, '/cache')).toBe('CHANGELOG.md')
+      expect(detectChangelog(null, '/cache')).toBe('releases/CHANGELOG.md')
     })
 
     it('prefers pkg changelog over cached', () => {
       vi.mocked(existsSync).mockImplementation((p: any) =>
         String(p).endsWith('CHANGELOG.md'),
       )
-      expect(detectChangelog('/pkg', '/cache')).toBe('CHANGELOG.md')
+      expect(detectChangelog('/pkg', '/cache')).toBe('pkg/CHANGELOG.md')
     })
   })
 
