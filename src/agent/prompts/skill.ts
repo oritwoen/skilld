@@ -46,33 +46,24 @@ export interface SkillOptions {
 export function generateSkillMd(opts: SkillOptions): string {
   const header = generatePackageHeader(opts)
   const search = !opts.eject && opts.features?.search !== false ? generateSearchBlock(opts.name, opts.hasIssues, opts.hasReleases) : ''
-  const content = opts.body
-    ? search ? `${header}\n\n${search}\n\n${opts.body}` : `${header}\n\n${opts.body}`
+  // Eject mode: rewrite .skilld/ paths to ./references/ in LLM-generated body
+  const body = opts.body && opts.eject
+    ? opts.body.replace(/\.\/\.skilld\//g, './references/')
+    : opts.body
+  const content = body
+    ? search ? `${header}\n\n${search}\n\n${body}` : `${header}\n\n${body}`
     : search ? `${header}\n\n${search}` : header
   const footer = generateFooter(opts.relatedSkills)
   return sanitizeMarkdown(repairMarkdown(`${generateFrontmatter(opts)}${content}\n${footer}`))
 }
 
-function formatRelativeDate(isoDate: string): string {
+/** Format ISO date as short absolute date: "Jan 2025", "Dec 2024" */
+function formatShortDate(isoDate: string): string {
   const date = new Date(isoDate)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-  if (diffDays === 0)
-    return 'today'
-  if (diffDays === 1)
-    return 'yesterday'
-  if (diffDays < 7)
-    return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
-  const weeks = Math.floor(diffDays / 7)
-  if (diffDays < 30)
-    return `${weeks} week${weeks === 1 ? '' : 's'} ago`
-  const months = Math.floor(diffDays / 30)
-  if (diffDays < 365)
-    return `${months} month${months === 1 ? '' : 's'} ago`
-  const years = Math.floor(diffDays / 365)
-  return `${years} year${years === 1 ? '' : 's'} ago`
+  if (Number.isNaN(date.getTime()))
+    return ''
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${months[date.getUTCMonth()]} ${date.getUTCFullYear()}`
 }
 
 function generatePackageHeader({ name, description, version, releasedAt, dependencies, distTags, repoUrl, hasIssues, hasDiscussions, hasReleases, pkgFiles, packages, eject }: SkillOptions): string {
@@ -87,10 +78,10 @@ function generatePackageHeader({ name, description, version, releasedAt, depende
   if (description)
     lines.push('', `> ${description}`)
 
-  // Version with link and relative date
+  // Version with release date (absolute to avoid stale relative times in published skills)
   if (version) {
-    const relativeDate = releasedAt ? formatRelativeDate(releasedAt) : ''
-    const versionStr = relativeDate ? `${version} (${relativeDate})` : version
+    const dateStr = releasedAt ? formatShortDate(releasedAt) : ''
+    const versionStr = dateStr ? `${version} (${dateStr})` : version
     lines.push('', `**Version:** ${versionStr}`)
   }
 
@@ -104,7 +95,7 @@ function generatePackageHeader({ name, description, version, releasedAt, depende
   if (distTags && Object.keys(distTags).length > 0) {
     const tags = Object.entries(distTags)
       .map(([tag, info]) => {
-        const relDate = info.releasedAt ? ` (${formatRelativeDate(info.releasedAt)})` : ''
+        const relDate = info.releasedAt ? ` (${formatShortDate(info.releasedAt)})` : ''
         return `${tag}: ${info.version}${relDate}`
       })
       .join(', ')

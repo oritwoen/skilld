@@ -57,7 +57,7 @@ instance.init({ ... })
 \`\`\`
 </format-example>
 
-Each item: ✅ + ${packageName}-specific pattern + why it's preferred + source link. Code block only when the pattern isn't obvious from the title. Use the most relevant language tag (ts, vue, css, json, etc). Every example must be specific to ${packageName} — never generic TypeScript/JS advice.`,
+Each item: ✅ + ${packageName}-specific pattern + why it's preferred + source link. Code block only when the pattern isn't obvious from the title. Use the most relevant language tag (ts, vue, css, json, etc). Every example must be specific to ${packageName} — never generic TypeScript/JS advice. All source links MUST use \`./.skilld/\` prefix (e.g., \`[source](./.skilld/docs/guide.md)\`).`,
 
     rules: [
       `- **${maxItems(4, 10, enabledSectionCount)} best practice items**`,

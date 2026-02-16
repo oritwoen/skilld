@@ -76,21 +76,19 @@ Find from releases/changelog:
 - **Breaking changes** in recent versions (v2 → v3 migrations, major version bumps)
 ${searchHints.length ? `\nSearch: ${searchHints.join(', ')}` : ''}${releaseGuidance}${versionGuidance}`,
 
-    format: `## API Changes
+    format: `<format-example note="Illustrative structure only — replace placeholder names with real ${packageName} APIs">
+## API Changes
 
 This section documents version-specific API changes — prioritize recent major/minor releases.
-
-\`\`\`
-## API Changes
 
 ⚠️ \`createClient(url, key)\` — v2 changed to \`createClient({ url, key })\`, old positional args silently ignored [source](./.skilld/releases/v2.0.0.md)
 
 ✨ \`useTemplateRef()\` — new in v3.5, replaces \`$refs\` pattern [source](./.skilld/releases/v3.5.0.md)
 
 ⚠️ \`db.query()\` — returns \`{ rows }\` not raw array since v4 [source](./.skilld/docs/migration.md)
-\`\`\`
+</format-example>
 
-Each item: ⚠️ (breaking/deprecated) or ✨ (new) + API name + what changed + source link.`,
+Each item: ⚠️ (breaking/deprecated) or ✨ (new) + API name + what changed + source link. All source links MUST use \`./.skilld/\` prefix (e.g., \`[source](./.skilld/releases/v2.0.0.md)\`).`,
 
     rules: [
       `- **API Changes:** ${maxItems(6, 12, enabledSectionCount)} items from version history, MAX ${maxLines(50, 80, enabledSectionCount)} lines`,

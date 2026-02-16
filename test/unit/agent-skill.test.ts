@@ -176,21 +176,20 @@ describe('agent/skill', () => {
       expect(result).not.toContain('version:')
     })
 
-    it('includes releasedAt as relative date in version line', () => {
+    it('includes releasedAt as short absolute date in version line', () => {
       const result = generateSkillMd({
         name: 'pkg',
         version: '1.0.0',
         releasedAt: '2024-02-01T12:00:00Z',
         relatedSkills: [],
       })
-      expect(result).toContain('**Version:** 1.0.0 (')
-      expect(result).toContain('ago)')
+      expect(result).toContain('**Version:** 1.0.0 (Feb 2024)')
     })
 
-    it('omits relative date if releasedAt not provided', () => {
+    it('omits date if releasedAt not provided', () => {
       const result = generateSkillMd({ name: 'pkg', version: '1.0.0', relatedSkills: [] })
       expect(result).toContain('**Version:** 1.0.0')
-      expect(result).not.toContain('ago)')
+      expect(result).not.toMatch(/\*\*Version:\*\* 1\.0\.0 \(/)
     })
   })
 

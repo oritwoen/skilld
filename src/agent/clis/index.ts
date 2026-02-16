@@ -643,11 +643,20 @@ function validateSectionOutput(content: string, section: SkillSection): Validati
 }
 
 /** Clean a single section's LLM output: strip markdown fences, frontmatter, sanitize */
-function cleanSectionOutput(content: string): string {
-  let cleaned = content
-    .replace(/^```markdown\n?/m, '')
-    .replace(/\n?```$/m, '')
-    .trim()
+export function cleanSectionOutput(content: string): string {
+  let cleaned = content.trim()
+
+  // Strip wrapping fences if output is wrapped in ```markdown, ```md, or bare ```
+  // Requires matched open+close pair to avoid stripping internal code blocks
+  const wrapMatch = cleaned.match(/^```(?:markdown|md)?\s*\n([\s\S]+)\n```\s*$/)
+  if (wrapMatch) {
+    const inner = wrapMatch[1]!.trim()
+    // For bare ``` wrappers (no markdown/md tag), verify inner looks like section output
+    const isExplicitWrapper = /^```(?:markdown|md)/.test(cleaned)
+    if (isExplicitWrapper || /^##\s/m.test(inner) || /[⚠✅✨]/.test(inner)) {
+      cleaned = inner
+    }
+  }
 
   // Strip accidental frontmatter or leading horizontal rules
   const fmMatch = cleaned.match(/^-{3,}\n/)
@@ -674,12 +683,25 @@ function cleanSectionOutput(content: string): string {
   }
 
   // Strip duplicate section headings (LLM echoing the format example before real content)
+  // Handles headings separated by blank lines or boilerplate text
   const headingMatch = cleaned.match(/^(## .+)\n/)
   if (headingMatch) {
-    const secondIdx = cleaned.indexOf(headingMatch[1]!, headingMatch[0].length)
-    if (secondIdx !== -1)
-      cleaned = cleaned.slice(secondIdx).trim()
+    const heading = headingMatch[1]!
+    const afterFirst = headingMatch[0].length
+    const secondIdx = cleaned.indexOf(heading, afterFirst)
+    if (secondIdx !== -1) {
+      // Only strip if the gap between duplicates is small (< 200 chars of boilerplate)
+      if (secondIdx - afterFirst < 200)
+        cleaned = cleaned.slice(secondIdx).trim()
+    }
   }
+
+  // Normalize source link paths: ensure .skilld/ prefix is present
+  // LLMs sometimes emit [source](./docs/...) instead of [source](./.skilld/docs/...)
+  cleaned = cleaned.replace(
+    /\[source\]\(\.\/((docs|issues|discussions|releases|pkg|guide)\/)/g,
+    '[source](./.skilld/$1',
+  )
 
   cleaned = sanitizeMarkdown(cleaned)
 
