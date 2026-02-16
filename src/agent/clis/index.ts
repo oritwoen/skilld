@@ -39,6 +39,8 @@ const TOOL_VERBS: Record<string, string> = {
   read_file: 'Reading',
   glob_tool: 'Searching',
   write_file: 'Writing',
+  list_directory: 'Listing',
+  search_file_content: 'Searching',
 }
 
 interface ToolProgressLog {
