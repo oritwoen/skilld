@@ -2,12 +2,13 @@
  * GitHub/ungh README resolution + versioned docs
  */
 
-import type { LlmsLink } from './types.ts'
+import type { LlmsLink, ResolvedPackage } from './types.ts'
 import { spawnSync } from 'node:child_process'
 import { existsSync as fsExistsSync, readFileSync as fsReadFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { mapInsert } from '../core/shared.ts'
 import { isGhAvailable } from './issues.ts'
+import { fetchLlmsUrl } from './llms.ts'
 import { getDocOverride } from './package-registry.ts'
 import { $fetch, extractBranchHint, fetchText, parseGitHubUrl } from './utils.ts'
 
@@ -663,4 +664,94 @@ export async function fetchReadmeContent(url: string): Promise<string | null> {
   }
 
   return fetchText(url)
+}
+
+/**
+ * Resolve a GitHub repo into a ResolvedPackage (no npm registry needed).
+ * Fetches repo meta, latest release version, git docs, README, and llms.txt.
+ */
+export async function resolveGitHubRepo(
+  owner: string,
+  repo: string,
+  onProgress?: (msg: string) => void,
+): Promise<ResolvedPackage | null> {
+  onProgress?.('Fetching repo metadata')
+
+  // Fetch repo metadata (homepage, description) via gh CLI or GitHub API
+  const repoUrl = `https://github.com/${owner}/${repo}`
+  let homepage: string | undefined
+  let description: string | undefined
+
+  if (isGhAvailable()) {
+    try {
+      const { stdout: json } = spawnSync('gh', ['api', `repos/${owner}/${repo}`, '--jq', '{homepage: .homepage, description: .description}'], {
+        encoding: 'utf-8',
+        timeout: 10_000,
+      })
+      if (json) {
+        const data = JSON.parse(json) as { homepage?: string, description?: string }
+        homepage = data.homepage || undefined
+        description = data.description || undefined
+      }
+    }
+    catch { /* fall through */ }
+  }
+
+  if (!homepage && !description) {
+    const data = await $fetch<{ homepage?: string, description?: string }>(
+      `https://api.github.com/repos/${owner}/${repo}`,
+    ).catch(() => null)
+    homepage = data?.homepage || undefined
+    description = data?.description || undefined
+  }
+
+  // Fetch latest release tag for version
+  onProgress?.('Fetching latest release')
+  const releasesData = await $fetch<{ releases?: Array<{ tag: string, publishedAt?: string }> }>(
+    `https://ungh.cc/repos/${owner}/${repo}/releases`,
+  ).catch(() => null)
+
+  let version = 'main'
+  let releasedAt: string | undefined
+  const latestRelease = releasesData?.releases?.[0]
+  if (latestRelease) {
+    // Extract version from tag (strip leading "v")
+    version = latestRelease.tag.replace(/^v/, '')
+    releasedAt = latestRelease.publishedAt
+  }
+
+  // Fetch git docs
+  onProgress?.('Resolving docs')
+  const gitDocs = await fetchGitDocs(owner, repo, version)
+  const gitDocsUrl = gitDocs ? `${repoUrl}/tree/${gitDocs.ref}/docs` : undefined
+  const gitRef = gitDocs?.ref
+
+  // Fetch README
+  onProgress?.('Fetching README')
+  const readmeUrl = await fetchReadme(owner, repo)
+
+  // Check for llms.txt at homepage
+  let llmsUrl: string | undefined
+  if (homepage) {
+    onProgress?.('Checking llms.txt')
+    llmsUrl = await fetchLlmsUrl(homepage).catch(() => null) ?? undefined
+  }
+
+  // Must have at least some docs
+  if (!gitDocsUrl && !readmeUrl && !llmsUrl)
+    return null
+
+  return {
+    name: repo,
+    version: latestRelease ? version : undefined,
+    releasedAt,
+    description,
+    repoUrl,
+    docsUrl: homepage,
+    gitDocsUrl,
+    gitRef,
+    gitDocsFallback: gitDocs?.fallback,
+    readmeUrl: readmeUrl ?? undefined,
+    llmsUrl,
+  }
 }

@@ -34,6 +34,7 @@ export {
   fetchReadmeContent,
   isShallowGitDocs,
   MIN_GIT_DOCS,
+  resolveGitHubRepo,
   validateGitDocsWithLlms,
 } from './github.ts'
 // Issues

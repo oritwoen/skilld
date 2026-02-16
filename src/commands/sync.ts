@@ -1,26 +1,20 @@
-import type { AgentType, CustomPrompt, OptimizeModel, SkillSection } from '../agent/index.ts'
-import type { FeaturesConfig } from '../core/config.ts'
+import type { AgentType, OptimizeModel } from '../agent/index.ts'
 import type { ProjectState } from '../core/skills.ts'
 import type { GitSkillSource } from '../sources/git-skills.ts'
 import type { ResolveAttempt } from '../sources/index.ts'
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import * as p from '@clack/prompts'
 import { defineCommand } from 'citty'
 import { join, relative, resolve } from 'pathe'
 import {
   agents,
   computeSkillDirName,
-  createToolProgress,
   detectImportedPackages,
   generateSkillMd,
-  getAvailableModels,
   getModelLabel,
-  getModelName,
   linkSkillToAgents,
-  optimizeDocs,
   sanitizeName,
 } from '../agent/index.ts'
-import { maxItems, maxLines } from '../agent/prompts/optional/budget.ts'
 import {
   ensureCacheDir,
   getCacheDir,
@@ -29,11 +23,10 @@ import {
   hasShippedDocs,
   isCached,
   linkPkgNamed,
-  listReferenceFiles,
   resolvePkgDir,
 } from '../cache/index.ts'
 import { getInstalledGenerators, introLine, isInteractive, promptForAgent, resolveAgent, sharedArgs } from '../cli-helpers.ts'
-import { defaultFeatures, hasCompletedWizard, readConfig, registerProject, updateConfig } from '../core/config.ts'
+import { defaultFeatures, hasCompletedWizard, readConfig, registerProject } from '../core/config.ts'
 import { timedSpinner } from '../core/formatting.ts'
 import { parsePackages, readLock, writeLock } from '../core/lockfile.ts'
 import { getSharedSkillsDir, SHARED_SKILLS_DIR } from '../core/shared.ts'
@@ -52,6 +45,9 @@ import { syncPackagesParallel } from './sync-parallel.ts'
 import {
   detectChangelog,
   ejectReferences,
+  enhanceSkillWithLLM,
+  ensureAgentInstructions,
+  ensureGitignore,
   fetchAndCacheResources,
   findRelatedSkills,
   forceClearCache,
@@ -61,8 +57,13 @@ import {
   RESOLVE_STEP_LABELS,
   resolveBaseDir,
   resolveLocalDep,
+  selectLlmConfig,
 } from './sync-shared.ts'
 import { runWizard } from './wizard.ts'
+
+// Re-export for external consumers
+export { DEFAULT_SECTIONS, enhanceSkillWithLLM, ensureAgentInstructions, ensureGitignore, selectLlmConfig, selectModel, selectSkillSections, SKILLD_MARKER_END, SKILLD_MARKER_START } from './sync-shared.ts'
+export type { EnhanceOptions, LlmConfig } from './sync-shared.ts'
 
 function showResolveAttempts(attempts: ResolveAttempt[]): void {
   if (attempts.length === 0)
@@ -75,131 +76,6 @@ function showResolveAttempts(attempts: ResolveAttempt[]): void {
     const msg = attempt.message ? ` - ${attempt.message}` : ''
     p.log.message(`  ${icon} ${source}${msg}`)
   }
-}
-
-/**
- * Check if .gitignore has `.skilld` entry.
- * If missing, prompt to add it. Skipped for global installs.
- */
-export async function ensureGitignore(skillsDir: string, cwd: string, isGlobal: boolean): Promise<void> {
-  if (isGlobal)
-    return
-
-  const gitignorePath = join(cwd, '.gitignore')
-  const pattern = '.skilld'
-
-  // Check if already ignored
-  if (existsSync(gitignorePath)) {
-    const content = readFileSync(gitignorePath, 'utf-8')
-    if (content.split('\n').some(line => line.trim() === pattern))
-      return
-  }
-
-  // Non-interactive: auto-add (default is true anyway)
-  if (!isInteractive()) {
-    const entry = `\n# Skilld references (recreated by \`skilld install\`)\n${pattern}\n`
-    if (existsSync(gitignorePath)) {
-      const existing = readFileSync(gitignorePath, 'utf-8')
-      const separator = existing.endsWith('\n') ? '' : '\n'
-      appendFileSync(gitignorePath, `${separator}${entry}`)
-    }
-    else {
-      writeFileSync(gitignorePath, entry)
-    }
-    return
-  }
-
-  // Show guidance
-  p.log.info(
-    `\x1B[1mGit guidance:\x1B[0m\n`
-    + `  \x1B[32m✓\x1B[0m Commit: \x1B[36m${skillsDir}/*/SKILL.md\x1B[0m\n`
-    + `  \x1B[32m✓\x1B[0m Commit: \x1B[36m${skillsDir}/skilld-lock.yaml\x1B[0m\n`
-    + `  \x1B[31m✗\x1B[0m Ignore: \x1B[36m${pattern}\x1B[0m \x1B[90m(recreated by \`skilld install\`)\x1B[0m`,
-  )
-
-  const add = await p.confirm({
-    message: `Add \`${pattern}\` to .gitignore?`,
-    initialValue: true,
-  })
-
-  if (p.isCancel(add) || !add)
-    return
-
-  const entry = `\n# Skilld references (recreated by \`skilld install\`)\n${pattern}\n`
-  if (existsSync(gitignorePath)) {
-    const existing = readFileSync(gitignorePath, 'utf-8')
-    const separator = existing.endsWith('\n') ? '' : '\n'
-    appendFileSync(gitignorePath, `${separator}${entry}`)
-  }
-  else {
-    writeFileSync(gitignorePath, entry)
-  }
-
-  p.log.success('Updated .gitignore')
-}
-
-export const SKILLD_MARKER_START = '<!-- skilld -->'
-export const SKILLD_MARKER_END = '<!-- /skilld -->'
-
-const SKILLD_INSTRUCTIONS = `${SKILLD_MARKER_START}
-Before modifying code, evaluate each installed skill against the current task.
-For each skill, determine YES/NO relevance and invoke all YES skills before proceeding.
-${SKILLD_MARKER_END}`
-
-/**
- * Check if agent instruction file has skilld skill-activation snippet.
- * If missing, prompt to add it. Skipped for global installs or agents without an instructionFile.
- */
-export async function ensureAgentInstructions(agent: AgentType, cwd: string, isGlobal: boolean): Promise<void> {
-  if (isGlobal)
-    return
-
-  const agentConfig = agents[agent]
-  if (!agentConfig.instructionFile)
-    return
-
-  const filePath = join(cwd, agentConfig.instructionFile)
-
-  // Check if marker already present
-  if (existsSync(filePath)) {
-    const content = readFileSync(filePath, 'utf-8')
-    if (content.includes(SKILLD_MARKER_START))
-      return
-  }
-
-  // Non-interactive: auto-add
-  if (!isInteractive()) {
-    if (existsSync(filePath)) {
-      const existing = readFileSync(filePath, 'utf-8')
-      const separator = existing.endsWith('\n') ? '' : '\n'
-      appendFileSync(filePath, `${separator}\n${SKILLD_INSTRUCTIONS}\n`)
-    }
-    else {
-      writeFileSync(filePath, `${SKILLD_INSTRUCTIONS}\n`)
-    }
-    return
-  }
-
-  p.note(SKILLD_INSTRUCTIONS, `Will be added to ${agentConfig.instructionFile}`)
-
-  const add = await p.confirm({
-    message: `Add skill activation instructions to ${agentConfig.instructionFile}?`,
-    initialValue: true,
-  })
-
-  if (p.isCancel(add) || !add)
-    return
-
-  if (existsSync(filePath)) {
-    const existing = readFileSync(filePath, 'utf-8')
-    const separator = existing.endsWith('\n') ? '' : '\n'
-    appendFileSync(filePath, `${separator}\n${SKILLD_INSTRUCTIONS}\n`)
-  }
-  else {
-    writeFileSync(filePath, `${SKILLD_INSTRUCTIONS}\n`)
-  }
-
-  p.log.success(`Updated ${agentConfig.instructionFile}`)
 }
 
 export interface SyncOptions {
@@ -346,153 +222,6 @@ async function pickFromList(
   }
 
   return selected as string[]
-}
-
-/** Select LLM model for SKILL.md generation (independent of target agent) */
-export async function selectModel(skipPrompt: boolean): Promise<OptimizeModel | null> {
-  const config = readConfig()
-  const available = await getAvailableModels()
-
-  if (available.length === 0) {
-    p.log.warn('No LLM CLIs found (claude, gemini, codex)')
-    return null
-  }
-
-  // Use config model if set and available
-  if (config.model && available.some(m => m.id === config.model)) {
-    return config.model
-  }
-
-  if (skipPrompt)
-    return available.find(m => m.recommended)?.id ?? available[0]!.id
-
-  const modelChoice = await p.select({
-    message: 'Model for SKILL.md generation',
-    options: available.map(m => ({
-      label: m.recommended ? `${m.name} (Recommended)` : m.name,
-      value: m.id,
-      hint: `${m.agentName} · ${m.hint}`,
-    })),
-    initialValue: available.find(m => m.recommended)?.id ?? available[0]!.id,
-  })
-
-  if (p.isCancel(modelChoice)) {
-    p.cancel('Cancelled')
-    return null
-  }
-
-  // Remember choice for next time
-  updateConfig({ model: modelChoice as OptimizeModel })
-
-  return modelChoice as OptimizeModel
-}
-
-/** Default sections when model is pre-set (non-interactive) */
-export const DEFAULT_SECTIONS: SkillSection[] = ['best-practices', 'api-changes']
-
-export async function selectSkillSections(message = 'Generate SKILL.md with LLM'): Promise<{ sections: SkillSection[], customPrompt?: CustomPrompt, cancelled: boolean }> {
-  p.log.info('More sections = less budget each. Fewer sections = deeper coverage.')
-  const selected = await p.multiselect({
-    message,
-    options: [
-      { label: 'API changes', value: 'api-changes' as SkillSection, hint: 'new/deprecated APIs from version history' },
-      { label: 'Best practices', value: 'best-practices' as SkillSection, hint: 'gotchas, pitfalls, patterns' },
-      { label: 'Doc map', value: 'api' as SkillSection, hint: 'compact index of exports linked to source files' },
-      { label: 'Custom section', value: 'custom' as SkillSection, hint: 'add your own section' },
-    ],
-    initialValues: DEFAULT_SECTIONS,
-    required: false,
-  })
-
-  if (p.isCancel(selected))
-    return { sections: [], cancelled: true }
-
-  const sections = selected as SkillSection[]
-  if (sections.length === 0)
-    return { sections: [], cancelled: false }
-
-  // Show per-section budget based on selection count
-  if (sections.length > 1) {
-    const n = sections.length
-    const budgetLines: string[] = []
-    for (const s of sections) {
-      switch (s) {
-        case 'api-changes':
-          budgetLines.push(`  API changes     ≤${maxLines(50, 80, n)} lines, ${maxItems(6, 12, n)} items`)
-          break
-        case 'best-practices':
-          budgetLines.push(`  Best practices  ≤${maxLines(80, 150, n)} lines, ${maxItems(4, 10, n)} items`)
-          break
-        case 'api':
-          budgetLines.push(`  Doc map         ≤${maxLines(15, 25, n)} lines`)
-          break
-        case 'custom':
-          budgetLines.push(`  Custom          ≤${maxLines(50, 80, n)} lines`)
-          break
-      }
-    }
-    p.log.info(`Budget (${n} sections):\n${budgetLines.join('\n')}`)
-  }
-
-  let customPrompt: CustomPrompt | undefined
-  if (sections.includes('custom')) {
-    const heading = await p.text({
-      message: 'Section heading',
-      placeholder: 'e.g. "Migration from v2" or "SSR Patterns"',
-    })
-    if (p.isCancel(heading))
-      return { sections: [], cancelled: true }
-
-    const body = await p.text({
-      message: 'Instructions for this section',
-      placeholder: 'e.g. "Document breaking changes and migration steps from v2 to v3"',
-    })
-    if (p.isCancel(body))
-      return { sections: [], cancelled: true }
-
-    customPrompt = { heading: heading as string, body: body as string }
-  }
-
-  return { sections, customPrompt, cancelled: false }
-}
-
-export interface LlmConfig {
-  model: OptimizeModel
-  sections: SkillSection[]
-  customPrompt?: CustomPrompt
-}
-
-/**
- * Resolve sections + model for LLM enhancement.
- * If presetModel is provided, uses DEFAULT_SECTIONS without prompting.
- * Returns null if cancelled or no sections/model selected.
- */
-export async function selectLlmConfig(presetModel?: OptimizeModel, message?: string): Promise<LlmConfig | null> {
-  if (presetModel) {
-    return { model: presetModel, sections: DEFAULT_SECTIONS }
-  }
-
-  // Non-interactive: auto-pick model with default sections
-  if (!isInteractive()) {
-    const model = await selectModel(true)
-    if (!model)
-      return null
-    return { model, sections: DEFAULT_SECTIONS }
-  }
-
-  const model = await selectModel(false)
-  if (!model)
-    return null
-
-  const modelName = getModelName(model)
-  const { sections, customPrompt, cancelled } = await selectSkillSections(
-    message ? `${message} (${modelName})` : `Generate SKILL.md with ${modelName}`,
-  )
-
-  if (cancelled || sections.length === 0)
-    return null
-
-  return { model, sections, customPrompt }
 }
 
 interface SyncConfig {
@@ -829,104 +558,6 @@ async function syncSinglePackage(packageSpec: string, config: SyncConfig): Promi
   p.outro(config.mode === 'update' ? `Updated ${packageName}${ejectMsg}` : `Synced ${packageName} to ${relative(cwd, skillDir)}${ejectMsg}`)
 }
 
-interface EnhanceOptions {
-  packageName: string
-  version: string
-  skillDir: string
-  dirName?: string
-  model: OptimizeModel
-  resolved: { repoUrl?: string, llmsUrl?: string, releasedAt?: string, docsUrl?: string, gitRef?: string, dependencies?: Record<string, string>, distTags?: Record<string, { version: string, releasedAt?: string }> }
-  relatedSkills: string[]
-  hasIssues: boolean
-  hasDiscussions: boolean
-  hasReleases: boolean
-  hasChangelog: string | false
-  docsType: 'llms.txt' | 'readme' | 'docs'
-  hasShippedDocs: boolean
-  pkgFiles: string[]
-  force?: boolean
-  debug?: boolean
-  sections?: SkillSection[]
-  customPrompt?: CustomPrompt
-  packages?: Array<{ name: string }>
-  features?: FeaturesConfig
-  eject?: boolean
-}
-
-export async function enhanceSkillWithLLM(opts: EnhanceOptions): Promise<void> {
-  const { packageName, version, skillDir, dirName, model, resolved, relatedSkills, hasIssues, hasDiscussions, hasReleases, hasChangelog, docsType, hasShippedDocs: shippedDocs, pkgFiles, force, debug, sections, customPrompt, packages, features, eject } = opts
-
-  // Eject mode: search index isn't built, so don't include search hints in prompts
-  const effectiveFeatures = eject && features ? { ...features, search: false } as FeaturesConfig : features
-
-  const llmLog = p.taskLog({ title: `Agent exploring ${packageName}` })
-  const docFiles = listReferenceFiles(skillDir)
-  const hasGithub = hasIssues || hasDiscussions
-  const { optimized, wasOptimized, usage, cost, warnings, debugLogsDir } = await optimizeDocs({
-    packageName,
-    skillDir,
-    model,
-    version,
-    hasGithub,
-    hasReleases,
-    hasChangelog,
-    docFiles,
-    docsType,
-    hasShippedDocs: shippedDocs,
-    noCache: force,
-    debug,
-    sections,
-    customPrompt,
-    features: effectiveFeatures,
-    pkgFiles,
-    onProgress: createToolProgress(llmLog),
-  })
-
-  if (wasOptimized) {
-    const costParts: string[] = []
-    if (usage) {
-      const totalK = Math.round(usage.totalTokens / 1000)
-      costParts.push(`${totalK}k tokens`)
-    }
-    if (cost)
-      costParts.push(`$${cost.toFixed(2)}`)
-    const costSuffix = costParts.length > 0 ? ` (${costParts.join(', ')})` : ''
-    llmLog.success(`Generated best practices${costSuffix}`)
-    if (debugLogsDir)
-      p.log.info(`Debug logs: ${debugLogsDir}`)
-    if (warnings?.length) {
-      for (const w of warnings)
-        p.log.warn(`\x1B[33m${w}\x1B[0m`)
-    }
-    const skillMd = generateSkillMd({
-      name: packageName,
-      version,
-      releasedAt: resolved.releasedAt,
-      dependencies: resolved.dependencies,
-      distTags: resolved.distTags,
-      body: optimized,
-      relatedSkills,
-      hasIssues,
-      hasDiscussions,
-      hasReleases,
-      hasChangelog,
-      docsType,
-      hasShippedDocs: shippedDocs,
-      pkgFiles,
-      generatedBy: getModelLabel(model),
-      dirName,
-      packages,
-      repoUrl: resolved.repoUrl,
-      features,
-      eject,
-    })
-    writeFileSync(join(skillDir, 'SKILL.md'), skillMd)
-  }
-  else {
-    llmLog.error('LLM optimization failed')
-  }
-}
-
 // ── Citty command definitions (lazy-loaded by cli.ts) ──
 
 export const addCommandDef = defineCommand({
@@ -974,7 +605,7 @@ export const addCommandDef = defineCommand({
     // Handle git sources
     if (gitSources.length > 0) {
       for (const source of gitSources) {
-        await syncGitSkills({ source, global: args.global, agent, yes: args.yes })
+        await syncGitSkills({ source, global: args.global, agent, yes: args.yes, model: args.model as OptimizeModel | undefined, force: args.force, debug: args.debug })
       }
     }
 
