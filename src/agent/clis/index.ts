@@ -648,7 +648,7 @@ export function cleanSectionOutput(content: string): string {
 
   // Strip wrapping fences if output is wrapped in ```markdown, ```md, or bare ```
   // Requires matched open+close pair to avoid stripping internal code blocks
-  const wrapMatch = cleaned.match(/^```(?:markdown|md)?\s*\n([\s\S]+)\n```\s*$/)
+  const wrapMatch = cleaned.match(/^```(?:markdown|md)?[^\S\n]*\n([\s\S]+)\n```[^\S\n]*$/)
   if (wrapMatch) {
     const inner = wrapMatch[1]!.trim()
     // For bare ``` wrappers (no markdown/md tag), verify inner looks like section output
