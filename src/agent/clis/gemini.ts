@@ -40,11 +40,13 @@ export function parseLine(line: string): ParsedEvent {
     // Tool invocation
     if (obj.type === 'tool_use' || obj.type === 'tool_call') {
       const name = obj.tool_name || obj.name || obj.tool || 'tool'
+      const params = obj.parameters || obj.args || obj.input || {}
+      const hint = params.file_path || params.path || params.dir_path || params.pattern || params.query || params.command || ''
       // Capture write_file content as fallback (matches Claude's Write tool behavior)
-      if (name === 'write_file' && obj.args?.content) {
-        return { toolName: name, writeContent: obj.args.content }
+      if (name === 'write_file' && params.content) {
+        return { toolName: name, toolHint: hint || undefined, writeContent: params.content }
       }
-      return { toolName: name }
+      return { toolName: name, toolHint: hint || undefined }
     }
 
     // Final result
