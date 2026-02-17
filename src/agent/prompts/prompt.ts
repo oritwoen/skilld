@@ -6,20 +6,19 @@ import type { FeaturesConfig } from '../../core/config.ts'
 import type { CustomPrompt, PromptSection, SectionContext } from './optional/index.ts'
 import { dirname } from 'pathe'
 import { getPackageRules } from '../../sources/package-registry.ts'
-import { apiChangesSection, apiSection, bestPracticesSection, customSection } from './optional/index.ts'
+import { apiChangesSection, bestPracticesSection, customSection } from './optional/index.ts'
 
-export type SkillSection = 'api-changes' | 'best-practices' | 'api' | 'custom'
+export type SkillSection = 'api-changes' | 'best-practices' | 'custom'
 
 /** Output file per section (inside .skilld/) */
 export const SECTION_OUTPUT_FILES: Record<SkillSection, string> = {
   'best-practices': '_BEST_PRACTICES.md',
   'api-changes': '_API_CHANGES.md',
-  'api': '_DOC_MAP.md',
   'custom': '_CUSTOM.md',
 }
 
 /** Merge order for final SKILL.md body */
-export const SECTION_MERGE_ORDER: SkillSection[] = ['api-changes', 'best-practices', 'api', 'custom']
+export const SECTION_MERGE_ORDER: SkillSection[] = ['api-changes', 'best-practices', 'custom']
 
 export interface BuildSkillPromptOptions {
   packageName: string
@@ -160,7 +159,6 @@ function getSectionDef(section: SkillSection, ctx: SectionContext, customPrompt?
   switch (section) {
     case 'api-changes': return apiChangesSection(ctx)
     case 'best-practices': return bestPracticesSection(ctx)
-    case 'api': return apiSection(ctx)
     case 'custom': return customPrompt ? customSection(customPrompt, ctx.enabledSectionCount) : null
   }
 }

@@ -414,7 +414,7 @@ function optimizeSection(opts: OptimizeSectionOptions): Promise<SectionResult> {
 export async function optimizeDocs(opts: OptimizeDocsOptions): Promise<OptimizeResult> {
   const { packageName, skillDir, model = 'sonnet', version, hasGithub, hasReleases, hasChangelog, docFiles, docsType, hasShippedDocs, onProgress, timeout = 180000, debug, noCache, sections, customPrompt, features, pkgFiles } = opts
 
-  const selectedSections = sections ?? ['api-changes', 'best-practices', 'api'] as SkillSection[]
+  const selectedSections = sections ?? ['api-changes', 'best-practices'] as SkillSection[]
 
   // Build all section prompts
   const sectionPrompts = buildAllSectionPrompts({
@@ -632,7 +632,6 @@ function shortenPath(p: string): string {
 const SECTION_MAX_LINES: Record<string, number> = {
   'api-changes': 160,
   'best-practices': 300,
-  'api': 160,
   'custom': 160,
 }
 

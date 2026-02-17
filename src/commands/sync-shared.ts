@@ -888,7 +888,6 @@ export async function selectSkillSections(message = 'Generate SKILL.md with LLM'
     options: [
       { label: 'API changes', value: 'api-changes' as SkillSection, hint: 'new/deprecated APIs from version history' },
       { label: 'Best practices', value: 'best-practices' as SkillSection, hint: 'gotchas, pitfalls, patterns' },
-      { label: 'Doc map', value: 'api' as SkillSection, hint: 'compact index of exports linked to source files' },
       { label: 'Custom section', value: 'custom' as SkillSection, hint: 'add your own section' },
     ],
     initialValues: DEFAULT_SECTIONS,
@@ -913,9 +912,6 @@ export async function selectSkillSections(message = 'Generate SKILL.md with LLM'
           break
         case 'best-practices':
           budgetLines.push(`  Best practices  ≤${maxLines(80, 150, n)} lines, ${maxItems(4, 10, n)} items`)
-          break
-        case 'api':
-          budgetLines.push(`  Doc map         ≤${maxLines(15, 25, n)} lines`)
           break
         case 'custom':
           budgetLines.push(`  Custom          ≤${maxLines(50, 80, n)} lines`)
