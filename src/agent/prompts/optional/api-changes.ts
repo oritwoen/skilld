@@ -53,15 +53,17 @@ export function apiChangesSection({ packageName, version, hasReleases, hasChange
     : ''
 
   const versionGuidance = major && minor
-    ? `\n\n**Item scoring** — include only items scoring ≥ 3:
+    ? `\n\n**Item scoring** — include only items scoring ≥ 3. Items scoring 0 MUST be excluded:
 
-| Change type | v${major}.x | v${Number(major) - 1}.x | Older |
+| Change type | v${major}.x | v${Number(major) - 1}.x → v${major}.x migration | Older |
 |-------------|:---:|:---:|:---:|
-| Silent breakage (compiles, wrong result) | 5 | 4 | 2 |
+| Silent breakage (compiles, wrong result) | 5 | 4 | 0 |
 | Removed/breaking API | 5 | 3 | 0 |
 | New API unknown to LLMs | 4 | 1 | 0 |
 | Deprecated (still works) | 3 | 1 | 0 |
-| Renamed/moved | 3 | 1 | 0 |`
+| Renamed/moved | 3 | 1 | 0 |
+
+The "Older" column means ≤ v${Number(major) - 2}.x — these changes are NOT useful because anyone on v${major}.x already migrated past them.`
     : ''
 
   return {
@@ -92,9 +94,10 @@ Each item: BREAKING/DEPRECATED/NEW label + API name + what changed + source link
 
     rules: [
       `- **API Changes:** ${maxItems(6, 12, enabledSectionCount)} items from version history, MAX ${maxLines(50, 80, enabledSectionCount)} lines`,
-      '- Prioritize recent major/minor releases over old patch versions',
+      '- **Recency:** Only include changes from the current major version and the previous→current migration. Exclude changes from older major versions entirely — users already migrated past them',
       '- Focus on APIs that CHANGED, not general conventions or gotchas',
       '- New APIs get NEW: prefix, deprecated/breaking get BREAKING: or DEPRECATED: prefix',
+      '- **Experimental APIs:** Append `(experimental)` to any API behind an experimental/unstable import path or flag. MAX 2 experimental items',
       hasReleases ? '- Start with `./.skilld/releases/_INDEX.md` to identify recent major/minor releases, then read specific release files' : '',
       hasChangelog ? '- Scan CHANGELOG.md for version headings, focus on Features/Breaking Changes sections' : '',
     ].filter(Boolean),
