@@ -6,14 +6,14 @@ import type { CachedDoc, CachedPackage } from './types.ts'
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'pathe'
 import { sanitizeMarkdown } from '../core/sanitize.ts'
-import { REFERENCES_DIR } from './config.ts'
+import { getRepoCacheDir, REFERENCES_DIR, REPOS_DIR } from './config.ts'
 import { getCacheDir } from './version.ts'
 
-/** Safely create a symlink, validating target is under REFERENCES_DIR */
+/** Safely create a symlink, validating target is under REFERENCES_DIR or REPOS_DIR */
 function safeSymlink(target: string, linkPath: string): void {
   const resolved = resolve(target)
-  if (!resolved.startsWith(REFERENCES_DIR))
-    throw new Error(`Symlink target outside references dir: ${resolved}`)
+  if (!resolved.startsWith(REFERENCES_DIR) && !resolved.startsWith(REPOS_DIR))
+    throw new Error(`Symlink target outside allowed dirs: ${resolved}`)
   // Remove pre-existing symlink (check with lstat to detect symlinks)
   try {
     const stat = lstatSync(linkPath)
@@ -36,6 +36,7 @@ export function isCached(name: string, version: string): boolean {
  */
 export function ensureCacheDir(): void {
   mkdirSync(REFERENCES_DIR, { recursive: true, mode: 0o700 })
+  mkdirSync(REPOS_DIR, { recursive: true, mode: 0o700 })
 }
 
 /**
@@ -56,6 +57,43 @@ export function writeToCache(
   }
 
   return cacheDir
+}
+
+/**
+ * Write docs to repo-level cache (~/.skilld/repos/<owner>/<repo>/)
+ */
+export function writeToRepoCache(
+  owner: string,
+  repo: string,
+  docs: CachedDoc[],
+): string {
+  const repoDir = getRepoCacheDir(owner, repo)
+  mkdirSync(repoDir, { recursive: true, mode: 0o700 })
+
+  for (const doc of docs) {
+    const filePath = join(repoDir, doc.path)
+    mkdirSync(join(filePath, '..'), { recursive: true, mode: 0o700 })
+    writeFileSync(filePath, sanitizeMarkdown(doc.content), { mode: 0o600 })
+  }
+
+  return repoDir
+}
+
+/**
+ * Create symlink from .skilld dir to a repo-level cached subdirectory.
+ *   .claude/skills/<skill>/.skilld/<subdir> -> ~/.skilld/repos/<owner>/<repo>/<subdir>
+ */
+export function linkRepoCachedDir(skillDir: string, owner: string, repo: string, subdir: string): void {
+  const repoDir = getRepoCacheDir(owner, repo)
+  const referencesDir = join(skillDir, '.skilld')
+  const linkPath = join(referencesDir, subdir)
+  const cachedPath = join(repoDir, subdir)
+
+  mkdirSync(referencesDir, { recursive: true })
+
+  if (existsSync(cachedPath)) {
+    safeSymlink(cachedPath, linkPath)
+  }
 }
 
 /**
@@ -324,6 +362,9 @@ export function clearAllCache(): number {
   for (const pkg of packages) {
     clearCache(pkg.name, pkg.version)
   }
+  // Also clear repo-level cache
+  if (existsSync(REPOS_DIR))
+    rmSync(REPOS_DIR, { recursive: true })
   return packages.length
 }
 

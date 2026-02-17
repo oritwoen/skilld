@@ -16,18 +16,24 @@ vi.mock('node:fs', async () => {
 
 vi.mock('../../src/cache', () => ({
   CACHE_DIR: '/mock-cache',
+  REPOS_DIR: '/mock-cache/repos',
   getCacheDir: vi.fn(() => '/mock-cache/references/test-pkg@1.0.0'),
   getPackageDbPath: vi.fn(() => '/mock-cache/references/test-pkg@1.0.0/db'),
+  getRepoCacheDir: vi.fn((owner: string, repo: string) => `/mock-cache/repos/${owner}/${repo}`),
   readCachedDocs: vi.fn(() => []),
   writeToCache: vi.fn(),
+  writeToRepoCache: vi.fn(),
   clearCache: vi.fn(),
   getShippedSkills: vi.fn(() => []),
   hasShippedDocs: vi.fn(() => false),
+  linkCachedDir: vi.fn(),
   linkDiscussions: vi.fn(),
   linkIssues: vi.fn(),
   linkPkg: vi.fn(),
+  linkPkgNamed: vi.fn(),
   linkReferences: vi.fn(),
   linkReleases: vi.fn(),
+  linkRepoCachedDir: vi.fn(),
   linkShippedSkill: vi.fn(),
   resolvePkgDir: vi.fn(),
 }))
@@ -91,7 +97,7 @@ vi.mock('../../src/agent', () => ({
 }))
 
 const { existsSync, readFileSync, rmSync, mkdirSync, copyFileSync, readdirSync } = await import('node:fs')
-const { getCacheDir, getPackageDbPath, readCachedDocs, writeToCache, clearCache } = await import('../../src/cache')
+const { getCacheDir, getPackageDbPath, readCachedDocs, writeToCache, writeToRepoCache, clearCache } = await import('../../src/cache')
 const { $fetch, fetchCrawledDocs, fetchGitDocs, fetchGitHubIssues, fetchGitHubDiscussions, fetchLlmsTxt, fetchReadmeContent, fetchReleaseNotes, downloadLlmsDocs, isGhAvailable, isShallowGitDocs, resolveEntryFiles, resolveLocalPackageDocs } = await import('../../src/sources')
 const { registerProject } = await import('../../src/core/config')
 const { writeLock } = await import('../../src/core/lockfile')
@@ -568,8 +574,9 @@ describe('sync-shared', () => {
       })
 
       expect(fetchGitHubIssues).toHaveBeenCalled()
-      expect(writeToCache).toHaveBeenCalled()
+      expect(writeToRepoCache).toHaveBeenCalled()
       expect(result.docsToIndex.some(d => d.metadata.type === 'issue')).toBe(true)
+      expect(result.repoInfo).toEqual({ owner: 'org', repo: 'repo' })
     })
 
     // 5j: Issues skipped — dir already exists
@@ -637,7 +644,7 @@ describe('sync-shared', () => {
       })
 
       expect(fetchReleaseNotes).toHaveBeenCalled()
-      expect(writeToCache).toHaveBeenCalled()
+      expect(writeToRepoCache).toHaveBeenCalled()
       expect(result.docsToIndex.some(d => d.metadata.type === 'release')).toBe(true)
     })
 

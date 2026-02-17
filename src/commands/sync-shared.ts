@@ -19,16 +19,19 @@ import {
   clearCache,
   getCacheDir,
   getPackageDbPath,
+  getRepoCacheDir,
   getShippedSkills,
   hasShippedDocs,
   linkCachedDir,
   linkPkg,
   linkPkgNamed,
+  linkRepoCachedDir,
   linkShippedSkill,
   listReferenceFiles,
   readCachedDocs,
   resolvePkgDir,
   writeToCache,
+  writeToRepoCache,
 } from '../cache/index.ts'
 import { isInteractive } from '../cli-helpers.ts'
 import { defaultFeatures, readConfig, registerProject, updateConfig } from '../core/config.ts'
@@ -128,15 +131,21 @@ export async function findRelatedSkills(packageName: string, skillsDir: string):
 }
 
 /** Clear cache + db for --force flag */
-export function forceClearCache(packageName: string, version: string): void {
+export function forceClearCache(packageName: string, version: string, repoInfo?: { owner: string, repo: string }): void {
   clearCache(packageName, version)
   const forcedDbPath = getPackageDbPath(packageName, version)
   if (existsSync(forcedDbPath))
     rmSync(forcedDbPath, { recursive: true, force: true })
+  // Also clear repo-level cache when force is used
+  if (repoInfo) {
+    const repoDir = getRepoCacheDir(repoInfo.owner, repoInfo.repo)
+    if (existsSync(repoDir))
+      rmSync(repoDir, { recursive: true, force: true })
+  }
 }
 
 /** Link all reference symlinks (pkg, docs, issues, discussions, releases) */
-export function linkAllReferences(skillDir: string, packageName: string, cwd: string, version: string, docsType: string, extraPackages?: Array<{ name: string, version?: string }>, features?: FeaturesConfig): void {
+export function linkAllReferences(skillDir: string, packageName: string, cwd: string, version: string, docsType: string, extraPackages?: Array<{ name: string, version?: string }>, features?: FeaturesConfig, repoInfo?: { owner: string, repo: string }): void {
   const f = features ?? readConfig().features ?? defaultFeatures
   try {
     linkPkg(skillDir, packageName, cwd, version)
@@ -144,12 +153,25 @@ export function linkAllReferences(skillDir: string, packageName: string, cwd: st
     if (!hasShippedDocs(packageName, cwd, version) && docsType !== 'readme') {
       linkCachedDir(skillDir, packageName, version, 'docs')
     }
-    if (f.issues)
-      linkCachedDir(skillDir, packageName, version, 'issues')
-    if (f.discussions)
-      linkCachedDir(skillDir, packageName, version, 'discussions')
-    if (f.releases)
-      linkCachedDir(skillDir, packageName, version, 'releases')
+    // Issues/discussions/releases: use repo cache when available, else package cache
+    if (f.issues) {
+      if (repoInfo)
+        linkRepoCachedDir(skillDir, repoInfo.owner, repoInfo.repo, 'issues')
+      else
+        linkCachedDir(skillDir, packageName, version, 'issues')
+    }
+    if (f.discussions) {
+      if (repoInfo)
+        linkRepoCachedDir(skillDir, repoInfo.owner, repoInfo.repo, 'discussions')
+      else
+        linkCachedDir(skillDir, packageName, version, 'discussions')
+    }
+    if (f.releases) {
+      if (repoInfo)
+        linkRepoCachedDir(skillDir, repoInfo.owner, repoInfo.repo, 'releases')
+      else
+        linkCachedDir(skillDir, packageName, version, 'releases')
+    }
     linkCachedDir(skillDir, packageName, version, 'sections')
     // Create named symlinks for additional packages in multi-package skills
     if (extraPackages) {
@@ -283,6 +305,8 @@ export interface FetchResult {
   hasDiscussions: boolean
   hasReleases: boolean
   warnings: string[]
+  /** Parsed GitHub owner/repo for repo-level cache */
+  repoInfo?: { owner: string, repo: string }
 }
 
 /** Fetch and cache all resources for a package (docs cascade + issues + discussions + releases) */
@@ -515,127 +539,140 @@ export async function fetchAndCacheResources(opts: {
     }
   }
 
-  // Issues (independent of useCache — has its own existsSync guard)
+  // Parse repo info once for repo-level caching
+  const gh = resolved.repoUrl ? parseGitHubUrl(resolved.repoUrl) : null
+  const repoInfo = gh ? { owner: gh.owner, repo: gh.repo } : undefined
+
+  // Determine where repo-level data lives (repo cache if available, else package cache)
+  const repoCacheDir = repoInfo ? getRepoCacheDir(repoInfo.owner, repoInfo.repo) : null
   const cacheDir = getCacheDir(packageName, version)
-  const issuesDir = join(cacheDir, 'issues')
-  if (features.issues && resolved.repoUrl && isGhAvailable() && !existsSync(issuesDir)) {
-    const gh = parseGitHubUrl(resolved.repoUrl)
-    if (gh) {
-      onProgress('Fetching issues via GitHub API')
-      const issues = await fetchGitHubIssues(gh.owner, gh.repo, 30, resolved.releasedAt, opts.from).catch(() => [])
-      if (issues.length > 0) {
-        onProgress(`Caching ${issues.length} issues`)
-        writeToCache(packageName, version, issues.map(issue => ({
+  const issuesDir = repoCacheDir ? join(repoCacheDir, 'issues') : join(cacheDir, 'issues')
+  const discussionsDir = repoCacheDir ? join(repoCacheDir, 'discussions') : join(cacheDir, 'discussions')
+  const releasesPath = repoCacheDir ? join(repoCacheDir, 'releases') : join(cacheDir, 'releases')
+
+  // Issues (independent of useCache — has its own existsSync guard)
+  if (features.issues && gh && isGhAvailable() && !existsSync(issuesDir)) {
+    onProgress('Fetching issues via GitHub API')
+    const issues = await fetchGitHubIssues(gh.owner, gh.repo, 30, resolved.releasedAt, opts.from).catch(() => [])
+    if (issues.length > 0) {
+      onProgress(`Caching ${issues.length} issues`)
+      const issueDocs = [
+        ...issues.map(issue => ({
           path: `issues/issue-${issue.number}.md`,
           content: formatIssueAsMarkdown(issue),
-        })))
-        writeToCache(packageName, version, [{
+        })),
+        {
           path: 'issues/_INDEX.md',
           content: generateIssueIndex(issues),
-        }])
-        for (const issue of issues) {
-          docsToIndex.push({
-            id: `issue-${issue.number}`,
-            content: sanitizeMarkdown(`#${issue.number}: ${issue.title}\n\n${issue.body || ''}`),
-            metadata: { package: packageName, source: `issues/issue-${issue.number}.md`, type: 'issue', number: issue.number },
-          })
-        }
+        },
+      ]
+      if (repoInfo)
+        writeToRepoCache(repoInfo.owner, repoInfo.repo, issueDocs)
+      else
+        writeToCache(packageName, version, issueDocs)
+      for (const issue of issues) {
+        docsToIndex.push({
+          id: `issue-${issue.number}`,
+          content: sanitizeMarkdown(`#${issue.number}: ${issue.title}\n\n${issue.body || ''}`),
+          metadata: { package: packageName, source: `issues/issue-${issue.number}.md`, type: 'issue', number: issue.number },
+        })
       }
     }
   }
 
   // Discussions
-  const discussionsDir = join(cacheDir, 'discussions')
-  if (features.discussions && resolved.repoUrl && isGhAvailable() && !existsSync(discussionsDir)) {
-    const gh = parseGitHubUrl(resolved.repoUrl)
-    if (gh) {
-      onProgress('Fetching discussions via GitHub API')
-      const discussions = await fetchGitHubDiscussions(gh.owner, gh.repo, 20, resolved.releasedAt, opts.from).catch(() => [])
-      if (discussions.length > 0) {
-        onProgress(`Caching ${discussions.length} discussions`)
-        writeToCache(packageName, version, discussions.map(d => ({
+  if (features.discussions && gh && isGhAvailable() && !existsSync(discussionsDir)) {
+    onProgress('Fetching discussions via GitHub API')
+    const discussions = await fetchGitHubDiscussions(gh.owner, gh.repo, 20, resolved.releasedAt, opts.from).catch(() => [])
+    if (discussions.length > 0) {
+      onProgress(`Caching ${discussions.length} discussions`)
+      const discussionDocs = [
+        ...discussions.map(d => ({
           path: `discussions/discussion-${d.number}.md`,
           content: formatDiscussionAsMarkdown(d),
-        })))
-        writeToCache(packageName, version, [{
+        })),
+        {
           path: 'discussions/_INDEX.md',
           content: generateDiscussionIndex(discussions),
-        }])
-        for (const d of discussions) {
-          docsToIndex.push({
-            id: `discussion-${d.number}`,
-            content: sanitizeMarkdown(`#${d.number}: ${d.title}\n\n${d.body || ''}`),
-            metadata: { package: packageName, source: `discussions/discussion-${d.number}.md`, type: 'discussion', number: d.number },
-          })
-        }
+        },
+      ]
+      if (repoInfo)
+        writeToRepoCache(repoInfo.owner, repoInfo.repo, discussionDocs)
+      else
+        writeToCache(packageName, version, discussionDocs)
+      for (const d of discussions) {
+        docsToIndex.push({
+          id: `discussion-${d.number}`,
+          content: sanitizeMarkdown(`#${d.number}: ${d.title}\n\n${d.body || ''}`),
+          metadata: { package: packageName, source: `discussions/discussion-${d.number}.md`, type: 'discussion', number: d.number },
+        })
       }
     }
   }
 
   // Releases (GitHub releases + blog releases + CHANGELOG → unified releases/ dir)
-  const releasesPath = join(cacheDir, 'releases')
-  if (features.releases && resolved.repoUrl && isGhAvailable() && !existsSync(releasesPath)) {
-    const gh = parseGitHubUrl(resolved.repoUrl)
-    if (gh) {
-      onProgress('Fetching releases via GitHub API')
-      const changelogRef = isPrerelease(version) ? getPrereleaseChangelogRef(packageName) : undefined
-      const releaseDocs = await fetchReleaseNotes(gh.owner, gh.repo, version, resolved.gitRef, packageName, opts.from, changelogRef).catch(() => [])
+  if (features.releases && gh && isGhAvailable() && !existsSync(releasesPath)) {
+    onProgress('Fetching releases via GitHub API')
+    const changelogRef = isPrerelease(version) ? getPrereleaseChangelogRef(packageName) : undefined
+    const releaseDocs = await fetchReleaseNotes(gh.owner, gh.repo, version, resolved.gitRef, packageName, opts.from, changelogRef).catch(() => [])
 
-      // Fetch blog releases into same releases/ dir
-      let blogDocs: Array<{ path: string, content: string }> = []
-      if (getBlogPreset(packageName)) {
-        onProgress('Fetching blog release notes')
-        blogDocs = await fetchBlogReleases(packageName, version).catch(() => [])
-      }
+    // Fetch blog releases into same releases/ dir
+    let blogDocs: Array<{ path: string, content: string }> = []
+    if (getBlogPreset(packageName)) {
+      onProgress('Fetching blog release notes')
+      blogDocs = await fetchBlogReleases(packageName, version).catch(() => [])
+    }
 
-      const allDocs = [...releaseDocs, ...blogDocs]
+    const allDocs = [...releaseDocs, ...blogDocs]
 
-      // Parse blog release metadata for index generation
-      const blogEntries = blogDocs
-        .filter(d => !d.path.endsWith('_INDEX.md'))
-        .map((d) => {
-          const versionMatch = d.path.match(/blog-(.+)\.md$/)
-          const fm = parseFrontmatter(d.content)
-          return {
-            version: versionMatch?.[1] ?? '',
-            title: fm.title ?? `Release ${versionMatch?.[1]}`,
-            date: fm.date ?? '',
-          }
-        })
-        .filter(b => b.version)
-
-      // Parse GitHub releases for index (extract from frontmatter)
-      const ghReleases = releaseDocs
-        .filter(d => d.path.startsWith('releases/') && !d.path.endsWith('CHANGELOG.md'))
-        .map((d) => {
-          const fm = parseFrontmatter(d.content)
-          const tag = fm.tag ?? ''
-          const name = fm.name ?? tag
-          const published = fm.published ?? ''
-          return { id: 0, tag, name, prerelease: false, createdAt: published, publishedAt: published, markdown: '' }
-        })
-        .filter(r => r.tag)
-
-      const hasChangelog = allDocs.some(d => d.path === 'releases/CHANGELOG.md')
-
-      // Generate unified _INDEX.md
-      if (ghReleases.length > 0 || blogEntries.length > 0) {
-        allDocs.push({
-          path: 'releases/_INDEX.md',
-          content: generateReleaseIndex({ releases: ghReleases, packageName, blogReleases: blogEntries, hasChangelog }),
-        })
-      }
-
-      if (allDocs.length > 0) {
-        onProgress(`Caching ${allDocs.length} releases`)
-        writeToCache(packageName, version, allDocs)
-        for (const doc of allDocs) {
-          docsToIndex.push({
-            id: doc.path,
-            content: doc.content,
-            metadata: { package: packageName, source: doc.path, type: 'release' },
-          })
+    // Parse blog release metadata for index generation
+    const blogEntries = blogDocs
+      .filter(d => !d.path.endsWith('_INDEX.md'))
+      .map((d) => {
+        const versionMatch = d.path.match(/blog-(.+)\.md$/)
+        const fm = parseFrontmatter(d.content)
+        return {
+          version: versionMatch?.[1] ?? '',
+          title: fm.title ?? `Release ${versionMatch?.[1]}`,
+          date: fm.date ?? '',
         }
+      })
+      .filter(b => b.version)
+
+    // Parse GitHub releases for index (extract from frontmatter)
+    const ghReleases = releaseDocs
+      .filter(d => d.path.startsWith('releases/') && !d.path.endsWith('CHANGELOG.md'))
+      .map((d) => {
+        const fm = parseFrontmatter(d.content)
+        const tag = fm.tag ?? ''
+        const name = fm.name ?? tag
+        const published = fm.published ?? ''
+        return { id: 0, tag, name, prerelease: false, createdAt: published, publishedAt: published, markdown: '' }
+      })
+      .filter(r => r.tag)
+
+    const hasChangelog = allDocs.some(d => d.path === 'releases/CHANGELOG.md')
+
+    // Generate unified _INDEX.md
+    if (ghReleases.length > 0 || blogEntries.length > 0) {
+      allDocs.push({
+        path: 'releases/_INDEX.md',
+        content: generateReleaseIndex({ releases: ghReleases, packageName, blogReleases: blogEntries, hasChangelog }),
+      })
+    }
+
+    if (allDocs.length > 0) {
+      onProgress(`Caching ${allDocs.length} releases`)
+      if (repoInfo)
+        writeToRepoCache(repoInfo.owner, repoInfo.repo, allDocs)
+      else
+        writeToCache(packageName, version, allDocs)
+      for (const doc of allDocs) {
+        docsToIndex.push({
+          id: doc.path,
+          content: doc.content,
+          metadata: { package: packageName, source: doc.path, type: 'release' },
+        })
       }
     }
   }
@@ -648,6 +685,7 @@ export async function fetchAndCacheResources(opts: {
     hasDiscussions: features.discussions && existsSync(discussionsDir),
     hasReleases: features.releases && existsSync(releasesPath),
     warnings,
+    repoInfo,
   }
 }
 
@@ -711,21 +749,23 @@ export async function indexResources(opts: {
  * Used for portable skills (git repos, sharing). Replaces symlinks with copies.
  * Does NOT copy pkg files — those reference node_modules directly.
  */
-export function ejectReferences(skillDir: string, packageName: string, cwd: string, version: string, docsType: string, features?: FeaturesConfig): void {
+export function ejectReferences(skillDir: string, packageName: string, cwd: string, version: string, docsType: string, features?: FeaturesConfig, repoInfo?: { owner: string, repo: string }): void {
   const f = features ?? readConfig().features ?? defaultFeatures
   const cacheDir = getCacheDir(packageName, version)
   const refsDir = join(skillDir, 'references')
+  // Repo-level data source (falls back to package cache)
+  const repoDir = repoInfo ? getRepoCacheDir(repoInfo.owner, repoInfo.repo) : cacheDir
 
   // Copy cached docs (skip pkg — eject is for portable sharing, pkg references node_modules)
   if (!hasShippedDocs(packageName, cwd, version) && docsType !== 'readme')
     copyCachedSubdir(cacheDir, refsDir, 'docs')
 
   if (f.issues)
-    copyCachedSubdir(cacheDir, refsDir, 'issues')
+    copyCachedSubdir(repoDir, refsDir, 'issues')
   if (f.discussions)
-    copyCachedSubdir(cacheDir, refsDir, 'discussions')
+    copyCachedSubdir(repoDir, refsDir, 'discussions')
   if (f.releases)
-    copyCachedSubdir(cacheDir, refsDir, 'releases')
+    copyCachedSubdir(repoDir, refsDir, 'releases')
 }
 
 /** Recursively copy a cached subdirectory into the references dir */

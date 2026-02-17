@@ -240,7 +240,7 @@ export async function runPipeline(name: string): Promise<PipelineResult> {
   }
 
   // Generate SKILL.md frontmatter (pure, same as sync command)
-  const skillDirName = computeSkillDirName(name, resolved.repoUrl)
+  const skillDirName = computeSkillDirName(name)
   const description = `Using code importing from "${name}". Researching or debugging ${name}.`
 
   const fmLines = [

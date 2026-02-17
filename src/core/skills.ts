@@ -149,7 +149,7 @@ export async function getProjectState(cwd: string = process.cwd()): Promise<Proj
   for (const [pkgName, version] of deps) {
     // Normalize package name (e.g., @scope/pkg -> scope-pkg)
     const normalizedName = pkgName.replace(/^@/, '').replace(/\//g, '-')
-    const skill = skillByName.get(normalizedName) || skillByName.get(pkgName) || skillByPkgName.get(pkgName)
+    const skill = skillByName.get(`${normalizedName}-skilld`) || skillByName.get(normalizedName) || skillByName.get(pkgName) || skillByPkgName.get(pkgName)
 
     if (!skill) {
       missing.push(pkgName)

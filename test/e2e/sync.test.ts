@@ -192,7 +192,7 @@ describe('e2e sync pipeline', () => {
         it('valid frontmatter', () => {
           const r = get()
           const fm = parseFrontmatter(r.skillMd)
-          const expectedDirName = computeSkillDirName(pkg.name, r.resolved.repoUrl)
+          const expectedDirName = computeSkillDirName(pkg.name)
           expect(fm.name).toBe(expectedDirName)
           expect(fm.description).toBeTruthy()
         })

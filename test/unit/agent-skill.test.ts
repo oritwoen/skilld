@@ -13,8 +13,7 @@ describe('agent/skill', () => {
       })
 
       expect(result).toContain('---')
-      expect(result).toContain('name: vue')
-      expect(result).not.toContain('name: vue-skilld')
+      expect(result).toContain('name: vue-skilld')
       expect(result).toContain('metadata:')
       expect(result).toContain('  version: 3.4.0')
       expect(result).toContain('Progressive JavaScript framework. ALWAYS use when editing or working with *.vue files or code importing \\"vue\\". Consult for debugging, best practices, or modifying vue.')
@@ -30,7 +29,6 @@ describe('agent/skill', () => {
       })
 
       expect(result).toContain('name: vuejs-core')
-      expect(result).not.toContain('name: vuejs-core-skilld')
       // description still uses npm package name for import matching
       expect(result).toContain('code importing \\"vue\\"')
     })
@@ -194,34 +192,26 @@ describe('agent/skill', () => {
   })
 
   describe('computeSkillDirName', () => {
-    it('uses GitHub owner/repo when repoUrl provided', () => {
-      expect(computeSkillDirName('vue', 'https://github.com/vuejs/core')).toBe('vuejs-core')
+    it('adds -skilld suffix', () => {
+      expect(computeSkillDirName('vue')).toBe('vue-skilld')
     })
 
-    it('handles .git suffix', () => {
-      expect(computeSkillDirName('vue', 'https://github.com/vuejs/core.git')).toBe('vuejs-core')
+    it('sanitizes scoped packages', () => {
+      expect(computeSkillDirName('@nuxt/ui')).toBe('nuxt-ui-skilld')
     })
 
-    it('handles URL with hash fragment', () => {
-      expect(computeSkillDirName('vue', 'https://github.com/vuejs/core#main')).toBe('vuejs-core')
+    it('monorepo packages produce distinct names (no collisions)', () => {
+      expect(computeSkillDirName('@unhead/vue')).toBe('unhead-vue-skilld')
+      expect(computeSkillDirName('@unhead/react')).toBe('unhead-react-skilld')
+      expect(computeSkillDirName('@unhead/vue')).not.toBe(computeSkillDirName('@unhead/react'))
     })
 
-    it('handles scoped packages — same result as owner/repo', () => {
-      expect(computeSkillDirName('@nuxt/ui', 'https://github.com/nuxt/ui')).toBe('nuxt-ui')
+    it('handles hyphenated packages', () => {
+      expect(computeSkillDirName('vue-router')).toBe('vue-router-skilld')
     })
 
-    it('deduplicates monorepo packages', () => {
-      const repo = 'https://github.com/vuejs/core'
-      expect(computeSkillDirName('vue', repo)).toBe(computeSkillDirName('@vue/reactivity', repo))
-    })
-
-    it('falls back to sanitized package name without repoUrl', () => {
-      expect(computeSkillDirName('vue')).toBe('vue')
-      expect(computeSkillDirName('@nuxt/ui')).toBe('nuxt-ui')
-    })
-
-    it('falls back for non-GitHub URLs', () => {
-      expect(computeSkillDirName('some-pkg', 'https://gitlab.com/org/repo')).toBe('some-pkg')
+    it('handles plain packages', () => {
+      expect(computeSkillDirName('some-pkg')).toBe('some-pkg-skilld')
     })
   })
 })

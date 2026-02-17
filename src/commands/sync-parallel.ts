@@ -336,7 +336,7 @@ async function syncBaseSkill(
   }
 
   const baseDir = resolveBaseDir(cwd, config.agent, config.global)
-  const skillDirName = computeSkillDirName(packageName, resolved.repoUrl)
+  const skillDirName = computeSkillDirName(packageName)
   const skillDir = join(baseDir, skillDirName)
   mkdirSync(skillDir, { recursive: true })
 
@@ -354,7 +354,7 @@ async function syncBaseSkill(
 
   // Create symlinks
   update(packageName, 'downloading', 'Linking references...', versionKey)
-  linkAllReferences(skillDir, packageName, cwd, version, resources.docsType, undefined, features)
+  linkAllReferences(skillDir, packageName, cwd, version, resources.docsType, undefined, features, resources.repoInfo)
 
   // Index all resources (single batch)
   if (features.search) {

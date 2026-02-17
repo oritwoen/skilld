@@ -328,7 +328,7 @@ async function syncSinglePackage(packageSpec: string, config: SyncConfig): Promi
   ensureCacheDir()
 
   const baseDir = resolveBaseDir(cwd, config.agent, config.global)
-  const skillDirName = config.name ? sanitizeName(config.name) : computeSkillDirName(packageName, resolved.repoUrl)
+  const skillDirName = config.name ? sanitizeName(config.name) : computeSkillDirName(packageName)
   // Eject path override: default to ./skills/<name>, or use specified directory
   const skillDir = config.eject
     ? typeof config.eject === 'string'
@@ -424,7 +424,7 @@ async function syncSinglePackage(packageSpec: string, config: SyncConfig): Promi
     p.log.warn(`\x1B[33m${w}\x1B[0m`)
 
   // Create symlinks (LLM needs .skilld/ to read docs, even in eject mode)
-  linkAllReferences(skillDir, packageName, cwd, version, resources.docsType, undefined, features)
+  linkAllReferences(skillDir, packageName, cwd, version, resources.docsType, undefined, features, resources.repoInfo)
 
   // ── Phase 2: Search index (skip in eject mode — not portable) ──
   if (features.search && !config.eject) {
@@ -533,7 +533,7 @@ async function syncSinglePackage(packageSpec: string, config: SyncConfig): Promi
     const skilldDir = join(skillDir, '.skilld')
     if (existsSync(skilldDir) && !config.debug)
       rmSync(skilldDir, { recursive: true, force: true })
-    ejectReferences(skillDir, packageName, cwd, version, resources.docsType, features)
+    ejectReferences(skillDir, packageName, cwd, version, resources.docsType, features, resources.repoInfo)
   }
 
   // Skip agent integration in eject mode (no symlinks, no gitignore, no instructions)

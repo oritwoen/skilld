@@ -3,7 +3,7 @@
  */
 
 // Config
-export { CACHE_DIR, getPackageDbPath, REFERENCES_DIR } from './config.ts'
+export { CACHE_DIR, getPackageDbPath, getRepoCacheDir, REFERENCES_DIR, REPOS_DIR } from './config.ts'
 
 // Storage operations
 export type { ShippedSkill } from './storage.ts'
@@ -19,6 +19,7 @@ export {
   linkCachedDir,
   linkPkg,
   linkPkgNamed,
+  linkRepoCachedDir,
   linkShippedSkill,
   listCached,
   listReferenceFiles,
@@ -27,6 +28,7 @@ export {
   resolvePkgDir,
   writeSections,
   writeToCache,
+  writeToRepoCache,
 } from './storage.ts'
 
 // Types

@@ -21,21 +21,16 @@ export function sanitizeName(name: string): string {
 }
 
 /**
- * Compute skill directory name from GitHub owner/repo when available,
- * falling back to sanitized package name.
+ * Compute skill directory name from package name with -skilld suffix.
+ * No collisions for monorepo packages (each gets a unique name).
  *
  * Examples:
- *   vue (vuejs/core) → vuejs-core
- *   @nuxt/ui (nuxt/ui) → nuxt-ui
- *   vue-router (vuejs/router) → vuejs-router
+ *   vue → vue-skilld
+ *   @unhead/vue → unhead-vue-skilld
+ *   @unhead/react → unhead-react-skilld
  */
-export function computeSkillDirName(packageName: string, repoUrl?: string): string {
-  if (repoUrl) {
-    const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?(?:[/#]|$)/)
-    if (match)
-      return sanitizeName(`${match[1]}-${match[2]}`)
-  }
-  return sanitizeName(packageName)
+export function computeSkillDirName(packageName: string): string {
+  return `${sanitizeName(packageName)}-skilld`
 }
 
 /**

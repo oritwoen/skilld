@@ -24,6 +24,7 @@ import {
   getCacheDir,
   getPackageDbPath,
   getPkgKeyFiles,
+  getRepoCacheDir,
   getShippedSkills,
   isCached,
   linkPkgNamed,
@@ -202,10 +203,13 @@ export async function installCommand(opts: InstallOptions): Promise<void> {
         if (existsSync(cachedDocs))
           symlinkSync(cachedDocs, docsLink, 'junction')
       }
-      // Link issues, discussions, and releases (only if feature enabled)
+      // Link issues, discussions, and releases (try repo cache first, fall back to package cache)
+      const repoGh = info.repo ? parseGitHubUrl(`https://github.com/${info.repo}`) : null
+      const repoCachePath = repoGh ? getRepoCacheDir(repoGh.owner, repoGh.repo) : null
       if (features.issues) {
         const issuesLink = join(referencesPath, 'issues')
-        const cachedIssues = join(globalCachePath, 'issues')
+        const repoIssues = repoCachePath ? join(repoCachePath, 'issues') : null
+        const cachedIssues = (repoIssues && existsSync(repoIssues)) ? repoIssues : join(globalCachePath, 'issues')
         if (existsSync(issuesLink))
           unlinkSync(issuesLink)
         if (existsSync(cachedIssues))
@@ -213,7 +217,8 @@ export async function installCommand(opts: InstallOptions): Promise<void> {
       }
       if (features.discussions) {
         const discussionsLink = join(referencesPath, 'discussions')
-        const cachedDiscussions = join(globalCachePath, 'discussions')
+        const repoDiscussions = repoCachePath ? join(repoCachePath, 'discussions') : null
+        const cachedDiscussions = (repoDiscussions && existsSync(repoDiscussions)) ? repoDiscussions : join(globalCachePath, 'discussions')
         if (existsSync(discussionsLink))
           unlinkSync(discussionsLink)
         if (existsSync(cachedDiscussions))
@@ -221,7 +226,8 @@ export async function installCommand(opts: InstallOptions): Promise<void> {
       }
       if (features.releases) {
         const releasesLink = join(referencesPath, 'releases')
-        const cachedReleases = join(globalCachePath, 'releases')
+        const repoReleases = repoCachePath ? join(repoCachePath, 'releases') : null
+        const cachedReleases = (repoReleases && existsSync(repoReleases)) ? repoReleases : join(globalCachePath, 'releases')
         if (existsSync(releasesLink))
           unlinkSync(releasesLink)
         if (existsSync(cachedReleases))
