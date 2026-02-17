@@ -7,7 +7,7 @@ import pLimit from 'p-limit'
 import { join, resolve } from 'pathe'
 import { detectImportedPackages } from './agent/index.ts'
 import { formatStatus, getRepoHint, isInteractive, promptForAgent, relativeTime, resolveAgent, sharedArgs } from './cli-helpers.ts'
-import { configCommand, interactiveSearch, removeCommand, runWizard, statusCommand, syncCommand } from './commands/index.ts'
+import { configCommand, removeCommand, runWizard, statusCommand } from './commands/index.ts'
 import { timedSpinner } from './core/formatting.ts'
 import { getProjectState, hasCompletedWizard, isOutdated, readConfig, semverGt } from './core/index.ts'
 import { fetchLatestVersion, fetchNpmRegistryMeta } from './sources/index.ts'
@@ -378,6 +378,7 @@ const main = defineCommand({
         }
 
         // syncCommand will ask about LLM after generating base skills
+        const { syncCommand } = await import('./commands/sync.ts')
         await syncCommand(state, {
           packages: selected,
           global: false,
@@ -509,7 +510,8 @@ const main = defineCommand({
             selected = choice
           }
 
-          return syncCommand(state, {
+          const { syncCommand: sync } = await import('./commands/sync.ts')
+          return sync(state, {
             packages: selected,
             global: false,
             agent: currentAgent,
@@ -532,7 +534,8 @@ const main = defineCommand({
           })
           if (p.isCancel(selected) || selected.length === 0)
             continue
-          return syncCommand(state, {
+          const { syncCommand: syncUpdate } = await import('./commands/sync.ts')
+          return syncUpdate(state, {
             packages: selected,
             global: false,
             agent: currentAgent,
@@ -547,6 +550,7 @@ const main = defineCommand({
           })
           continue
         case 'search': {
+          const { interactiveSearch } = await import('./commands/search-interactive.ts')
           await interactiveSearch()
           continue
         }
