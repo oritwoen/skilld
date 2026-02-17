@@ -12,7 +12,7 @@ import { basename, dirname, join, resolve } from 'pathe'
 import { getCacheDir } from '../cache/version.ts'
 import { fetchGitDocs, fetchGitHubRepoMeta, fetchReadme, searchGitHubRepo, validateGitDocsWithLlms } from './github.ts'
 import { fetchLlmsTxt, fetchLlmsUrl } from './llms.ts'
-import { $fetch, isGitHubRepoUrl, isUselessDocsUrl, normalizeRepoUrl, parseGitHubUrl } from './utils.ts'
+import { $fetch, isGitHubRepoUrl, isUselessDocsUrl, normalizeRepoUrl, parseGitHubUrl, parsePackageSpec } from './utils.ts'
 
 /**
  * Search npm registry for packages matching a query.
@@ -60,10 +60,12 @@ export interface NpmRegistryMeta {
  * Fetch release date and dist-tags from npm registry
  */
 export async function fetchNpmRegistryMeta(packageName: string, version: string): Promise<NpmRegistryMeta> {
+  // Strip dist-tag from package name (e.g. "vue@beta" → "vue")
+  const { name: barePackageName } = parsePackageSpec(packageName)
   const data = await $fetch<{
     'time'?: Record<string, string>
     'dist-tags'?: Record<string, string>
-  }>(`https://registry.npmjs.org/${packageName}`).catch(() => null)
+  }>(`https://registry.npmjs.org/${barePackageName}`).catch(() => null)
 
   if (!data)
     return {}
