@@ -29,6 +29,8 @@ export interface RepoEntry {
   docsRef?: string
   /** Homepage URL */
   homepage?: string
+  /** URL pattern to crawl for docs (glob, e.g. 'https://example.com/docs/**') */
+  crawlUrl?: string
   /** Branch to fetch CHANGELOG.md from when installed version is a prerelease (e.g. 'minor' for Vue) */
   prereleaseChangelogRef?: string
   /** Packages in this repo */
@@ -377,6 +379,18 @@ const REPO_REGISTRY: Record<string, RepoEntry> = {
     },
   },
 
+  // ── Animation ──
+
+  'motiondivision/motion-vue': {
+    owner: 'motiondivision',
+    repo: 'motion-vue',
+    homepage: 'https://motion.dev',
+    crawlUrl: 'https://motion.dev/docs/vue**',
+    packages: {
+      'motion-v': { primary: true },
+    },
+  },
+
   // ── Other ──
 
   'prisma/prisma': {
@@ -469,6 +483,13 @@ export function getPrereleaseChangelogRef(packageName: string): string | undefin
   if (!repoKey)
     return undefined
   return REPO_REGISTRY[repoKey]?.prereleaseChangelogRef
+}
+
+export function getCrawlUrl(packageName: string): string | undefined {
+  const repoKey = PACKAGE_TO_REPO_MAP[packageName]
+  if (!repoKey)
+    return undefined
+  return REPO_REGISTRY[repoKey]?.crawlUrl
 }
 
 export function getRelatedPackages(packageName: string): string[] {

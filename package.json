@@ -58,6 +58,7 @@
   "dependencies": {
     "@clack/prompts": "catalog:deps",
     "@huggingface/transformers": "catalog:deps",
+    "@mdream/crawl": "catalog:",
     "citty": "catalog:deps",
     "consola": "catalog:deps",
     "globby": "catalog:deps",

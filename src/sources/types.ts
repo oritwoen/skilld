@@ -38,6 +38,8 @@ export interface ResolvedPackage {
   gitRef?: string
   /** True when gitRef is a branch fallback (no version tag found) */
   gitDocsFallback?: boolean
+  /** URL pattern to crawl for docs */
+  crawlUrl?: string
 }
 
 export interface LocalDependency {

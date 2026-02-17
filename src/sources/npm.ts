@@ -12,6 +12,7 @@ import { basename, dirname, join, resolve } from 'pathe'
 import { getCacheDir } from '../cache/version.ts'
 import { fetchGitDocs, fetchGitHubRepoMeta, fetchReadme, searchGitHubRepo, validateGitDocsWithLlms } from './github.ts'
 import { fetchLlmsTxt, fetchLlmsUrl } from './llms.ts'
+import { getCrawlUrl } from './package-registry.ts'
 import { $fetch, isGitHubRepoUrl, isUselessDocsUrl, normalizeRepoUrl, parseGitHubUrl, parsePackageSpec } from './utils.ts'
 
 /**
@@ -86,7 +87,7 @@ export async function fetchNpmRegistryMeta(packageName: string, version: string)
   }
 }
 
-export type ResolveStep = 'npm' | 'github-docs' | 'github-meta' | 'github-search' | 'readme' | 'llms.txt' | 'local'
+export type ResolveStep = 'npm' | 'github-docs' | 'github-meta' | 'github-search' | 'readme' | 'llms.txt' | 'crawl' | 'local'
 
 export interface ResolveOptions {
   /** User's installed version - used to fetch versioned git docs */
@@ -304,6 +305,12 @@ export async function resolvePackageDocsWithAttempts(packageName: string, option
         message: 'No repository URL in package.json and GitHub search found no match',
       })
     }
+  }
+
+  // Check registry for crawl URL
+  const crawlUrl = getCrawlUrl(packageName)
+  if (crawlUrl) {
+    result.crawlUrl = crawlUrl
   }
 
   // Check for llms.txt on docsUrl

@@ -212,6 +212,23 @@ export const PACKAGES: PackageSpec[] = [
     searchQuery: { query: 'composable', minHits: 1 },
   },
 
+  // ── motion-v ────────────────────────────────────────────────────────
+  // Motion for Vue — no git docs, no llms.txt. Docs crawled from motion.dev.
+  // Uses registry crawlUrl: https://motion.dev/docs/vue/**
+  {
+    name: 'motion-v',
+    preset: 'vue',
+    expectRepoUrl: 'github.com/motiondivision/motion-vue',
+    expectDocsUrl: 'https://motion.dev',
+    expectSources: { npm: true, gitDocs: false, llmsTxt: false, readme: true },
+    expectDocsType: 'docs',
+    expectCacheFiles: [
+      'docs/docs/vue-animation.md',
+    ],
+    minCacheDocs: 3,
+    expectDescriptionContains: '"motion-v"',
+  },
+
   // ═══════════════════════════════════════════════════════════════════
   // React preset
   // ═══════════════════════════════════════════════════════════════════

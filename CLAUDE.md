@@ -61,9 +61,10 @@ CLI tool that generates AI agent skills from NPM package documentation. Requires
 **Doc resolution cascade (src/commands/sync.ts):**
 1. Package ships `skills/` directory → symlink directly (skills-npm convention)
 2. Git-hosted versioned docs → fetch from GitHub tags via ungh.cc
-3. GitHub repo metadata → issues, discussions, releases (optional features)
+3. Registry `crawlUrl` → crawl specific URL pattern via `@mdream/crawl` (e.g. motion-v)
 4. `llms.txt` at package homepage → parse and download linked .md files
-5. GitHub README via ungh proxy → fallback
+5. Website crawl → crawl `docsUrl/**` via sitemap when no docs found above
+6. GitHub README via ungh proxy → fallback
 
 Resolution tracked via `ResolveAttempt[]` array for debugging failures. Blog release posts (curated in `src/sources/blog-presets.ts`) supplement docs for major version announcements.
 

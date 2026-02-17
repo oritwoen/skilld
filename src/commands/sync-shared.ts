@@ -41,6 +41,7 @@ import {
   $fetch,
   downloadLlmsDocs,
   fetchBlogReleases,
+  fetchCrawledDocs,
   fetchGitDocs,
   fetchGitHubDiscussions,
   fetchGitHubIssues,
@@ -63,6 +64,7 @@ import {
   parseGitHubUrl,
   resolveEntryFiles,
   resolveLocalPackageDocs,
+  toCrawlPattern,
 } from '../sources/index.ts'
 
 export const RESOLVE_STEP_LABELS: Record<ResolveStep, string> = {
@@ -72,6 +74,7 @@ export const RESOLVE_STEP_LABELS: Record<ResolveStep, string> = {
   'github-search': 'GitHub search',
   'readme': 'README',
   'llms.txt': 'llms.txt',
+  'crawl': 'website crawl',
   'local': 'node_modules',
 }
 
@@ -385,6 +388,25 @@ export async function fetchAndCacheResources(opts: {
       }
     }
 
+    // Try website crawl
+    if (resolved.crawlUrl && cachedDocs.length === 0) {
+      onProgress('Crawling website')
+      const crawledDocs = await fetchCrawledDocs(resolved.crawlUrl, onProgress).catch(() => [])
+      if (crawledDocs.length > 0) {
+        for (const doc of crawledDocs) {
+          cachedDocs.push(doc)
+          docsToIndex.push({
+            id: doc.path,
+            content: doc.content,
+            metadata: { package: packageName, source: doc.path, type: 'doc' },
+          })
+        }
+        docSource = resolved.crawlUrl
+        docsType = 'docs'
+        writeToCache(packageName, version, cachedDocs)
+      }
+    }
+
     // Try llms.txt
     if (resolved.llmsUrl && cachedDocs.length === 0) {
       onProgress('Fetching llms.txt')
@@ -413,6 +435,26 @@ export async function fetchAndCacheResources(opts: {
           }
         }
 
+        writeToCache(packageName, version, cachedDocs)
+      }
+    }
+
+    // Try crawling docsUrl as fallback (when no actual doc files from git/crawl/llms.txt)
+    if (resolved.docsUrl && !cachedDocs.some(d => d.path.startsWith('docs/'))) {
+      const crawlPattern = resolved.crawlUrl || toCrawlPattern(resolved.docsUrl)
+      onProgress('Crawling docs site')
+      const crawledDocs = await fetchCrawledDocs(crawlPattern, onProgress).catch(() => [])
+      if (crawledDocs.length > 0) {
+        for (const doc of crawledDocs) {
+          cachedDocs.push(doc)
+          docsToIndex.push({
+            id: doc.path,
+            content: doc.content,
+            metadata: { package: packageName, source: doc.path, type: 'doc' },
+          })
+        }
+        docSource = crawlPattern
+        docsType = 'docs'
         writeToCache(packageName, version, cachedDocs)
       }
     }

@@ -34,7 +34,9 @@ vi.mock('../../src/cache', () => ({
 
 vi.mock('../../src/sources', () => ({
   $fetch: vi.fn(),
+  downloadLlmsDocs: vi.fn(),
   fetchBlogReleases: vi.fn(),
+  fetchCrawledDocs: vi.fn(() => Promise.resolve([])),
   fetchGitDocs: vi.fn(),
   fetchGitHubDiscussions: vi.fn(),
   fetchGitHubIssues: vi.fn(),
@@ -42,25 +44,25 @@ vi.mock('../../src/sources', () => ({
   fetchNpmPackage: vi.fn(),
   fetchReadmeContent: vi.fn(),
   fetchReleaseNotes: vi.fn(),
-  downloadLlmsDocs: vi.fn(),
-  getBlogPreset: vi.fn(() => null),
-  getPrereleaseChangelogRef: vi.fn(() => undefined),
-  isPrerelease: vi.fn(() => false),
-  normalizeLlmsLinks: vi.fn((raw: string) => raw),
   formatDiscussionAsMarkdown: vi.fn((d: any) => `# ${d.title}`),
   formatIssueAsMarkdown: vi.fn((i: any) => `# ${i.title}`),
   generateDiscussionIndex: vi.fn(() => '# Discussions'),
   generateDocsIndex: vi.fn(() => ''),
   generateIssueIndex: vi.fn(() => '# Issues'),
   generateReleaseIndex: vi.fn(() => '# Releases'),
+  getBlogPreset: vi.fn(() => null),
+  getPrereleaseChangelogRef: vi.fn(() => undefined),
   isGhAvailable: vi.fn(() => true),
+  isPrerelease: vi.fn(() => false),
   isShallowGitDocs: vi.fn(() => false),
+  normalizeLlmsLinks: vi.fn((raw: string) => raw),
   parseGitHubUrl: vi.fn((url: string) => {
     const m = url.match(/github\.com\/([^/]+)\/([^/]+)/)
     return m ? { owner: m[1], repo: m[2] } : null
   }),
   resolveEntryFiles: vi.fn(() => []),
   resolveLocalPackageDocs: vi.fn(),
+  toCrawlPattern: vi.fn((url: string) => `${url.replace(/\/+$/, '')}/**`),
 }))
 
 vi.mock('../../src/core/config', () => ({
@@ -90,7 +92,7 @@ vi.mock('../../src/agent', () => ({
 
 const { existsSync, readFileSync, rmSync, mkdirSync, copyFileSync, readdirSync } = await import('node:fs')
 const { getCacheDir, getPackageDbPath, readCachedDocs, writeToCache, clearCache } = await import('../../src/cache')
-const { $fetch, fetchGitDocs, fetchGitHubIssues, fetchGitHubDiscussions, fetchLlmsTxt, fetchReadmeContent, fetchReleaseNotes, downloadLlmsDocs, isGhAvailable, isShallowGitDocs, resolveEntryFiles, resolveLocalPackageDocs } = await import('../../src/sources')
+const { $fetch, fetchCrawledDocs, fetchGitDocs, fetchGitHubIssues, fetchGitHubDiscussions, fetchLlmsTxt, fetchReadmeContent, fetchReleaseNotes, downloadLlmsDocs, isGhAvailable, isShallowGitDocs, resolveEntryFiles, resolveLocalPackageDocs } = await import('../../src/sources')
 const { registerProject } = await import('../../src/core/config')
 const { writeLock } = await import('../../src/core/lockfile')
 const { createIndex } = await import('../../src/retriv')
@@ -436,6 +438,83 @@ describe('sync-shared', () => {
       expect(result.docsType).toBe('readme')
       expect(result.docsToIndex).toHaveLength(0)
       expect(writeToCache).not.toHaveBeenCalled()
+    })
+
+    // 5f2: Registry crawlUrl success (before llms.txt)
+    it('fetches docs via registry crawlUrl', async () => {
+      const resolved = {
+        name: 'test-pkg',
+        crawlUrl: 'https://example.com/docs/vue/**',
+        docsUrl: 'https://example.com',
+      }
+      vi.mocked(fetchCrawledDocs).mockResolvedValue([
+        { path: 'docs/intro.md', content: '# Intro' },
+        { path: 'docs/api.md', content: '# API' },
+      ])
+
+      const result = await fetchAndCacheResources({ ...baseOpts, resolved })
+
+      expect(result.docsType).toBe('docs')
+      expect(result.docSource).toBe('https://example.com/docs/vue/**')
+      expect(result.docsToIndex).toHaveLength(2)
+      expect(writeToCache).toHaveBeenCalled()
+      // llms.txt should NOT be attempted since crawl succeeded
+      expect(fetchLlmsTxt).not.toHaveBeenCalled()
+    })
+
+    // 5f3: docsUrl crawl fallback (after llms.txt)
+    it('crawls docsUrl when llms.txt has no linked docs', async () => {
+      const resolved = {
+        name: 'test-pkg',
+        llmsUrl: 'https://example.com/llms.txt',
+        docsUrl: 'https://example.com',
+      }
+      vi.mocked(fetchLlmsTxt).mockResolvedValue({ raw: '# llms content', links: [] })
+      vi.mocked(fetchCrawledDocs).mockResolvedValue([
+        { path: 'docs/guide.md', content: '# Guide' },
+      ])
+
+      const result = await fetchAndCacheResources({ ...baseOpts, resolved })
+
+      expect(result.docsType).toBe('docs')
+      expect(result.docSource).toContain('/**')
+      expect(fetchCrawledDocs).toHaveBeenCalled()
+      expect(result.docsToIndex).toHaveLength(1)
+    })
+
+    // 5f4: docsUrl crawl skipped when llms.txt has linked docs
+    it('skips docsUrl crawl when llms.txt provides docs', async () => {
+      const resolved = {
+        name: 'test-pkg',
+        llmsUrl: 'https://example.com/llms.txt',
+        docsUrl: 'https://example.com',
+      }
+      vi.mocked(fetchLlmsTxt).mockResolvedValue({ raw: 'content', links: ['/api'] })
+      vi.mocked(downloadLlmsDocs).mockResolvedValue([
+        { url: '/api', content: 'api docs' },
+      ])
+
+      const result = await fetchAndCacheResources({ ...baseOpts, resolved })
+
+      expect(result.docsType).toBe('llms.txt')
+      expect(fetchCrawledDocs).not.toHaveBeenCalled()
+    })
+
+    // 5f5: crawl error handled gracefully
+    it('handles crawl errors gracefully', async () => {
+      const resolved = {
+        name: 'test-pkg',
+        docsUrl: 'https://example.com',
+        readmeUrl: 'https://example.com/readme',
+      }
+      vi.mocked(fetchCrawledDocs).mockRejectedValue(new Error('crawl failed'))
+      vi.mocked(fetchReadmeContent).mockResolvedValue('# README')
+
+      const result = await fetchAndCacheResources({ ...baseOpts, resolved })
+
+      // Should fall through to README
+      expect(result.docsType).toBe('readme')
+      expect(result.docsToIndex).toHaveLength(1)
     })
 
     // 5g: useCache=true, db exists

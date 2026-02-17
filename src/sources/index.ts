@@ -4,6 +4,9 @@
 
 export { fetchBlogReleases } from './blog-releases.ts'
 
+// Crawl
+export { fetchCrawledDocs, toCrawlPattern } from './crawl.ts'
+
 // Discussions
 export type { GitHubDiscussion } from './discussions.ts'
 
@@ -80,7 +83,7 @@ export {
 // Package registry
 export type { BlogPreset, BlogRelease, DocOverride } from './package-registry.ts'
 
-export { getBlogPreset, getDocOverride, getFilePatterns, getPrereleaseChangelogRef, getRelatedPackages, getRepoEntry, getRepoKeyForPackage } from './package-registry.ts'
+export { getBlogPreset, getCrawlUrl, getDocOverride, getFilePatterns, getPrereleaseChangelogRef, getRelatedPackages, getRepoEntry, getRepoKeyForPackage } from './package-registry.ts'
 
 // Releases
 export type { GitHubRelease, ReleaseIndexOptions, SemVer } from './releases.ts'
