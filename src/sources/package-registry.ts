@@ -29,6 +29,8 @@ export interface RepoEntry {
   docsRef?: string
   /** Homepage URL */
   homepage?: string
+  /** Branch to fetch CHANGELOG.md from when installed version is a prerelease (e.g. 'minor' for Vue) */
+  prereleaseChangelogRef?: string
   /** Packages in this repo */
   packages: Record<string, PackageEntry>
   /** Curated blog release posts */
@@ -60,6 +62,7 @@ const REPO_REGISTRY: Record<string, RepoEntry> = {
     docsRepo: 'docs',
     docsPath: 'src',
     homepage: 'https://vuejs.org',
+    prereleaseChangelogRef: 'minor',
     packages: {
       'vue': { primary: true, filePatterns: ['*.vue'], rules: ['ALWAYS use `<script setup lang="ts">`'] },
       '@vue/compiler-core': {},
@@ -459,6 +462,13 @@ export function getPackageRules(packageName: string): string[] {
   if (!repoKey)
     return []
   return REPO_REGISTRY[repoKey]?.packages[packageName]?.rules ?? []
+}
+
+export function getPrereleaseChangelogRef(packageName: string): string | undefined {
+  const repoKey = PACKAGE_TO_REPO_MAP[packageName]
+  if (!repoKey)
+    return undefined
+  return REPO_REGISTRY[repoKey]?.prereleaseChangelogRef
 }
 
 export function getRelatedPackages(packageName: string): string[] {

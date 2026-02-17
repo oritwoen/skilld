@@ -99,15 +99,16 @@ export function compareSemver(a: SemVer, b: SemVer): number {
  */
 function fetchReleasesViaGh(owner: string, repo: string): GitHubRelease[] {
   try {
-    const { stdout: json } = spawnSync('gh', [
+    const { stdout: ndjson } = spawnSync('gh', [
       'api',
-      `repos/${owner}/${repo}/releases?per_page=100`,
+      `repos/${owner}/${repo}/releases`,
+      '--paginate',
       '--jq',
-      '[.[] | {id: .id, tag: .tag_name, name: .name, prerelease: .prerelease, createdAt: .created_at, publishedAt: .published_at, markdown: .body}]',
-    ], { encoding: 'utf-8', timeout: 15_000, stdio: ['ignore', 'pipe', 'ignore'] })
-    if (!json)
+      '.[] | {id: .id, tag: .tag_name, name: .name, prerelease: .prerelease, createdAt: .created_at, publishedAt: .published_at, markdown: .body}',
+    ], { encoding: 'utf-8', timeout: 30_000, stdio: ['ignore', 'pipe', 'ignore'] })
+    if (!ndjson)
       return []
-    return JSON.parse(json) as GitHubRelease[]
+    return ndjson.trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
   }
   catch {
     return []
@@ -344,20 +345,12 @@ export async function fetchReleaseNotes(
   gitRef?: string,
   packageName?: string,
   fromDate?: string,
+  changelogRef?: string,
 ): Promise<CachedDoc[]> {
   const releases = await fetchAllReleases(owner, repo)
   const selected = selectReleases(releases, packageName, installedVersion, fromDate)
 
   if (selected.length > 0) {
-    // Detect changelog-redirect pattern: short stubs that just link to CHANGELOG.md
-    // Sample up to 3 releases to check
-    if (isChangelogRedirectPattern(selected)) {
-      const ref = gitRef || selected[0]!.tag
-      const changelog = await fetchChangelog(owner, repo, ref, packageName)
-      if (changelog)
-        return [{ path: 'releases/CHANGELOG.md', content: changelog }]
-    }
-
     // Filter out individual stub releases that just say "see CHANGELOG"
     const substantive = selected.filter(r => !isStubRelease(r))
 
@@ -371,8 +364,8 @@ export async function fetchReleaseNotes(
       }
     })
 
-    // Also fetch CHANGELOG.md alongside individual releases (unless redirect pattern)
-    const ref = gitRef || selected[0]!.tag
+    // Always fetch CHANGELOG.md alongside substantive releases
+    const ref = changelogRef || gitRef || selected[0]!.tag
     const changelog = await fetchChangelog(owner, repo, ref, packageName)
     if (changelog && changelog.length < 500_000) {
       docs.push({ path: 'releases/CHANGELOG.md', content: changelog })
@@ -382,7 +375,7 @@ export async function fetchReleaseNotes(
   }
 
   // Fallback: CHANGELOG.md (indexed as single file)
-  const ref = gitRef || 'main'
+  const ref = changelogRef || gitRef || 'main'
   const changelog = await fetchChangelog(owner, repo, ref, packageName)
   if (!changelog)
     return []

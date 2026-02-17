@@ -44,6 +44,8 @@ vi.mock('../../src/sources', () => ({
   fetchReleaseNotes: vi.fn(),
   downloadLlmsDocs: vi.fn(),
   getBlogPreset: vi.fn(() => null),
+  getPrereleaseChangelogRef: vi.fn(() => undefined),
+  isPrerelease: vi.fn(() => false),
   normalizeLlmsLinks: vi.fn((raw: string) => raw),
   formatDiscussionAsMarkdown: vi.fn((d: any) => `# ${d.title}`),
   formatIssueAsMarkdown: vi.fn((i: any) => `# ${i.title}`),

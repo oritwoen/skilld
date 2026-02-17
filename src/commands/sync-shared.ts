@@ -53,7 +53,9 @@ import {
   generateIssueIndex,
   generateReleaseIndex,
   getBlogPreset,
+  getPrereleaseChangelogRef,
   isGhAvailable,
+  isPrerelease,
   isShallowGitDocs,
   normalizeLlmsLinks,
   parseGitHubUrl,
@@ -512,7 +514,8 @@ export async function fetchAndCacheResources(opts: {
     const gh = parseGitHubUrl(resolved.repoUrl)
     if (gh) {
       onProgress('Fetching releases via GitHub API')
-      const releaseDocs = await fetchReleaseNotes(gh.owner, gh.repo, version, resolved.gitRef, packageName, opts.from).catch(() => [])
+      const changelogRef = isPrerelease(version) ? getPrereleaseChangelogRef(packageName) : undefined
+      const releaseDocs = await fetchReleaseNotes(gh.owner, gh.repo, version, resolved.gitRef, packageName, opts.from, changelogRef).catch(() => [])
 
       // Fetch blog releases into same releases/ dir
       let blogDocs: Array<{ path: string, content: string }> = []
