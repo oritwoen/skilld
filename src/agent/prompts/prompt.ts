@@ -191,7 +191,7 @@ export function buildSectionPrompt(opts: BuildSkillPromptOptions & { section: Sk
     '- **Read `_INDEX.md` first** in issues/releases/discussions — only drill into files that look relevant. Skip stub/placeholder files.',
     '- **Skip files starting with `PROMPT_`** — these are generation prompts, not reference material.',
     '- **Stop exploring once you have enough high-quality items** to fill the budget. Do not read additional files just to be thorough.',
-    '- **To verify API exports:** Read the `.d.ts` file directly (see Types row in references). Do NOT use search with relative paths or `include` filters on package directories — they may silently return no results.',
+    '- **To verify API exports:** Read the `.d.ts` file directly (see Types row in references). Package directories are often gitignored — if you search `pkg/`, pass `no_ignore: true` to avoid silent empty results.',
   ]
 
   const weightsTable = sectionDef.referenceWeights?.length
