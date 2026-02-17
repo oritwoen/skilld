@@ -3,6 +3,7 @@ import { createRetriv } from 'retriv'
 import { autoChunker } from 'retriv/chunkers/auto'
 import sqlite from 'retriv/db/sqlite'
 import { transformersJs } from 'retriv/embeddings/transformers-js'
+import { stripFrontmatter } from '../core/markdown.ts'
 import { cachedEmbeddings } from './embedding-cache.ts'
 
 export type { ChunkEntity, Document, IndexConfig, IndexPhase, IndexProgress, SearchFilter, SearchOptions, SearchResult, SearchSnippet }
@@ -65,14 +66,6 @@ export async function search(
     entities: r._chunk?.entities,
     scope: r._chunk?.scope,
   }))
-}
-
-/**
- * Strip YAML frontmatter from markdown content
- */
-function stripFrontmatter(content: string): string {
-  const match = content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n/)
-  return match ? content.slice(match[0].length).trim() : content
 }
 
 /**

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'pathe'
+import { parseFrontmatter } from './markdown.ts'
 import { yamlEscape, yamlParseKV } from './yaml.ts'
 
 export interface SkillInfo {
@@ -39,40 +40,20 @@ export interface SkilldLock {
   skills: Record<string, SkillInfo>
 }
 
+const SKILL_FM_KEYS: (keyof SkillInfo)[] = ['packageName', 'version', 'packages', 'repo', 'source', 'syncedAt', 'generator', 'path', 'ref', 'commit']
+
 export function parseSkillFrontmatter(skillPath: string): SkillInfo | null {
   if (!existsSync(skillPath))
     return null
   const content = readFileSync(skillPath, 'utf-8')
-  const match = content.match(/^---\n([\s\S]*?)\n---/)
-  if (!match)
+  const fm = parseFrontmatter(content)
+  if (Object.keys(fm).length === 0)
     return null
 
   const info: SkillInfo = {}
-  for (const line of match[1].split('\n')) {
-    const kv = yamlParseKV(line)
-    if (!kv)
-      continue
-    const [key, value] = kv
-    if (key === 'packageName')
-      info.packageName = value
-    if (key === 'version')
-      info.version = value
-    if (key === 'packages')
-      info.packages = value
-    if (key === 'repo')
-      info.repo = value
-    if (key === 'source')
-      info.source = value
-    if (key === 'syncedAt')
-      info.syncedAt = value
-    if (key === 'generator')
-      info.generator = value
-    if (key === 'path')
-      info.path = value
-    if (key === 'ref')
-      info.ref = value
-    if (key === 'commit')
-      info.commit = value
+  for (const key of SKILL_FM_KEYS) {
+    if (fm[key])
+      info[key] = fm[key]
   }
   return info
 }

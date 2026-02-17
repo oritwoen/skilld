@@ -62,7 +62,11 @@
     "consola": "catalog:deps",
     "globby": "catalog:deps",
     "log-update": "catalog:deps",
+    "mdast-util-from-markdown": "catalog:deps",
+    "mdast-util-frontmatter": "catalog:deps",
+    "mdast-util-to-string": "catalog:deps",
     "mdream": "catalog:",
+    "micromark-extension-frontmatter": "catalog:deps",
     "mlly": "catalog:deps",
     "ofetch": "catalog:",
     "oxc-parser": "catalog:deps",
@@ -73,7 +77,8 @@
     "sqlite-vec": "catalog:deps",
     "std-env": "catalog:",
     "typescript": "catalog:deps",
-    "unagent": "catalog:"
+    "unagent": "catalog:",
+    "unist-util-visit": "catalog:deps"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev-lint",

@@ -8,7 +8,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import pLimit from 'p-limit'
 import { resolve } from 'pathe'
-import { yamlParseKV } from '../core/yaml.ts'
+import { parseFrontmatter } from '../core/markdown.ts'
 import { $fetch, normalizeRepoUrl, parseGitHubUrl } from './utils.ts'
 
 export interface GitSkillSource {
@@ -119,21 +119,8 @@ function parseGitUrl(url: string): GitSkillSource | null {
  * Parse name and description from SKILL.md frontmatter.
  */
 export function parseSkillFrontmatterName(content: string): { name?: string, description?: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---/)
-  if (!match)
-    return {}
-
-  const result: { name?: string, description?: string } = {}
-  for (const line of match[1].split('\n')) {
-    const kv = yamlParseKV(line)
-    if (!kv)
-      continue
-    if (kv[0] === 'name')
-      result.name = kv[1]
-    if (kv[0] === 'description')
-      result.description = kv[1]
-  }
-  return result
+  const fm = parseFrontmatter(content)
+  return { name: fm.name, description: fm.description }
 }
 
 interface UnghFilesResponse {

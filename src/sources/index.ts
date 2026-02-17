@@ -6,11 +6,14 @@ export { fetchBlogReleases } from './blog-releases.ts'
 
 // Discussions
 export type { GitHubDiscussion } from './discussions.ts'
+
 export {
   fetchGitHubDiscussions,
   formatDiscussionAsMarkdown,
   generateDiscussionIndex,
 } from './discussions.ts'
+// Docs
+export { generateDocsIndex } from './docs.ts'
 
 // Entries
 export type { EntryFile } from './entries.ts'

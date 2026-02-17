@@ -1,6 +1,7 @@
 export * from './config.ts'
 export * from './formatting.ts'
 export * from './lockfile.ts'
+export * from './markdown.ts'
 export * from './sanitize.ts'
 export * from './shared.ts'
 export * from './skills.ts'

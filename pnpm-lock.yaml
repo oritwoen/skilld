@@ -52,6 +52,18 @@ catalogs:
     log-update:
       specifier: ^7.1.0
       version: 7.1.0
+    mdast-util-from-markdown:
+      specifier: ^2.0.2
+      version: 2.0.2
+    mdast-util-frontmatter:
+      specifier: ^2.0.1
+      version: 2.0.1
+    mdast-util-to-string:
+      specifier: ^4.0.0
+      version: 4.0.0
+    micromark-extension-frontmatter:
+      specifier: ^2.0.0
+      version: 2.0.0
     mlly:
       specifier: ^1.8.0
       version: 1.8.0
@@ -70,6 +82,9 @@ catalogs:
     typescript:
       specifier: 6.0.0-beta
       version: 6.0.0-beta
+    unist-util-visit:
+      specifier: ^5.0.0
+      version: 5.1.0
   dev-build:
     '@types/node':
       specifier: ^25.2.3
@@ -117,9 +132,21 @@ importers:
       log-update:
         specifier: catalog:deps
         version: 7.1.0
+      mdast-util-from-markdown:
+        specifier: catalog:deps
+        version: 2.0.2
+      mdast-util-frontmatter:
+        specifier: catalog:deps
+        version: 2.0.1
+      mdast-util-to-string:
+        specifier: catalog:deps
+        version: 4.0.0
       mdream:
         specifier: 'catalog:'
         version: 0.16.0
+      micromark-extension-frontmatter:
+        specifier: catalog:deps
+        version: 2.0.0
       mlly:
         specifier: catalog:deps
         version: 1.8.0
@@ -153,6 +180,9 @@ importers:
       unagent:
         specifier: 'catalog:'
         version: 0.0.8(@huggingface/transformers@3.8.1)(ai@6.0.68(zod@4.3.6))(sqlite-vec@0.1.6)
+      unist-util-visit:
+        specifier: catalog:deps
+        version: 5.1.0
     devDependencies:
       '@antfu/eslint-config':
         specifier: catalog:dev-lint

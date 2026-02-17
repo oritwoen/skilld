@@ -50,6 +50,7 @@ vi.mock('../../src/sources', () => ({
   formatDiscussionAsMarkdown: vi.fn((d: any) => `# ${d.title}`),
   formatIssueAsMarkdown: vi.fn((i: any) => `# ${i.title}`),
   generateDiscussionIndex: vi.fn(() => '# Discussions'),
+  generateDocsIndex: vi.fn(() => ''),
   generateIssueIndex: vi.fn(() => '# Issues'),
   generateReleaseIndex: vi.fn(() => '# Releases'),
   isGhAvailable: vi.fn(() => true),

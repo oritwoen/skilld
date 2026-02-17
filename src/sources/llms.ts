@@ -4,6 +4,7 @@
 
 import type { FetchedDoc, LlmsContent, LlmsLink } from './types.ts'
 import pLimit from 'p-limit'
+import { extractLinks } from '../core/markdown.ts'
 import { fetchText, verifyUrl } from './utils.ts'
 
 /**
@@ -35,18 +36,7 @@ export async function fetchLlmsTxt(url: string): Promise<LlmsContent | null> {
  * Parse markdown links from llms.txt to get .md file paths
  */
 export function parseMarkdownLinks(content: string): LlmsLink[] {
-  const links: LlmsLink[] = []
-  const seen = new Set<string>()
-  const linkRegex = /\[([^\]]+)\]\(([^)]+\.md)\)/g
-  for (let match = linkRegex.exec(content); match !== null; match = linkRegex.exec(content)) {
-    const url = match[2]!
-    if (!seen.has(url)) {
-      seen.add(url)
-      links.push({ title: match[1]!, url })
-    }
-  }
-
-  return links
+  return extractLinks(content).filter(l => l.url.endsWith('.md'))
 }
 
 /**
