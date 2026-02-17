@@ -39,6 +39,7 @@ export interface GitHubDiscussion {
   url: string
   upvoteCount: number
   comments: number
+  isMaintainer?: boolean
   answer?: string
   topComments: DiscussionComment[]
 }
@@ -89,12 +90,58 @@ function truncateBody(body: string, limit: number): string {
   return `${slice}...`
 }
 
+/** Off-topic or spam title patterns — instant reject */
+const TITLE_NOISE_RE = /looking .*(developer|engineer|freelanc)|hiring|job post|guide me to (?:complete|finish|build)|help me (?:complete|finish|build)|seeking .* tutorial|recommend.* course/i
+
+/** Minimum score for a discussion to be included */
+const MIN_DISCUSSION_SCORE = 3
+
 /**
  * Score a comment for quality. Higher = more useful for skill generation.
  * Maintainers 3x, code blocks 2x, reactions linear.
  */
 function scoreComment(c: { body: string, reactions: number, isMaintainer?: boolean }): number {
   return (c.isMaintainer ? 3 : 1) * (hasCodeBlock(c.body) ? 2 : 1) * (1 + c.reactions)
+}
+
+/**
+ * Score a discussion for overall quality. Used for filtering and sorting.
+ * Returns -1 for instant-reject (spam/off-topic).
+ */
+export function scoreDiscussion(d: GitHubDiscussion): number {
+  if (TITLE_NOISE_RE.test(d.title))
+    return -1
+
+  let score = 0
+
+  // Discussion authored by a maintainer — high signal
+  if (d.isMaintainer)
+    score += 3
+
+  // Code presence — strongest signal for technical discussions
+  const allText = [d.body, d.answer || '', ...d.topComments.map(c => c.body)].join('\n')
+  if (hasCodeBlock(allText))
+    score += 3
+
+  // Engagement
+  score += Math.min(d.upvoteCount, 5)
+
+  // Answer quality
+  if (d.answer) {
+    score += 2
+    if (d.answer.length > 100)
+      score += 1
+  }
+
+  // Maintainer involvement
+  if (d.topComments.some(c => c.isMaintainer))
+    score += 2
+
+  // Community validation via reactions
+  if (d.topComments.some(c => c.reactions > 0))
+    score += 1
+
+  return score
 }
 
 /**
@@ -127,7 +174,7 @@ export async function fetchGitHubDiscussions(
     // Fetch more to compensate for filtering
     const fetchCount = Math.min(limit * 3, 80)
     // Fetch 10 comments per discussion so we can filter noise and pick best
-    const query = `query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { discussions(first: ${fetchCount}, orderBy: {field: CREATED_AT, direction: DESC}) { nodes { number title body category { name } createdAt url upvoteCount comments(first: 10) { totalCount nodes { body author { login } authorAssociation reactions { totalCount } } } answer { body author { login } authorAssociation } author { login } } } } }`
+    const query = `query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { discussions(first: ${fetchCount}, orderBy: {field: CREATED_AT, direction: DESC}) { nodes { number title body category { name } createdAt url upvoteCount comments(first: 10) { totalCount nodes { body author { login } authorAssociation reactions { totalCount } } } answer { body author { login } authorAssociation } author { login } authorAssociation } } } }`
 
     const { stdout: result } = spawnSync('gh', ['api', 'graphql', '-f', `query=${query}`, '-f', `owner=${owner}`, '-f', `repo=${repo}`], {
       encoding: 'utf-8',
@@ -184,19 +231,23 @@ export async function fetchGitHubDiscussions(
           url: d.url,
           upvoteCount: d.upvoteCount || 0,
           comments: d.comments?.totalCount || 0,
+          isMaintainer: ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(d.authorAssociation),
           answer,
           topComments: comments,
         }
       })
-      // Prioritize high-value categories, then sort by engagement
-      .sort((a: GitHubDiscussion, b: GitHubDiscussion) => {
-        const aHigh = HIGH_VALUE_CATEGORIES.has(a.category.toLowerCase()) ? 1 : 0
-        const bHigh = HIGH_VALUE_CATEGORIES.has(b.category.toLowerCase()) ? 1 : 0
+      // Score, filter low-quality, sort by category priority then score
+      .map((d: GitHubDiscussion) => ({ d, score: scoreDiscussion(d) }))
+      .filter(({ score }) => score >= MIN_DISCUSSION_SCORE)
+      .sort((a, b) => {
+        const aHigh = HIGH_VALUE_CATEGORIES.has(a.d.category.toLowerCase()) ? 1 : 0
+        const bHigh = HIGH_VALUE_CATEGORIES.has(b.d.category.toLowerCase()) ? 1 : 0
         if (aHigh !== bHigh)
           return bHigh - aHigh
-        return (b.upvoteCount + b.comments) - (a.upvoteCount + a.comments)
+        return b.score - a.score
       })
       .slice(0, limit)
+      .map(({ d }) => d)
 
     return discussions
   }
