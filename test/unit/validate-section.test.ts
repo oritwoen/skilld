@@ -172,5 +172,29 @@ describe('section validators', () => {
       const warnings = validate(content)
       expect(warnings.every(w => !w.warning.includes('missing .skilld/ prefix'))).toBe(true)
     })
+
+    it('warns on absolute filesystem paths in source links', () => {
+      const content = [
+        '## API Changes',
+        '',
+        '- BREAKING: `foo()` — changed [source](/home/user/.skilld/references/pkg@1.0.0/docs/migration.md)',
+        '- NEW: `bar()` — added [source](./.skilld/releases/v2.0.0.md)',
+        '- DEPRECATED: `baz()` — removed [source](/tmp/skilld/releases/v3.0.0.md)',
+      ].join('\n')
+      const warnings = validate(content)
+      expect(warnings.some(w => w.warning.includes('absolute paths'))).toBe(true)
+    })
+
+    it('does not warn on relative paths for absolute path check', () => {
+      const content = [
+        '## API Changes',
+        '',
+        '- BREAKING: `foo()` — changed [source](./.skilld/releases/v2.0.0.md)',
+        '- NEW: `bar()` — added [source](./.skilld/docs/migration.md)',
+        '- DEPRECATED: `baz()` — removed [source](./.skilld/issues/123.md)',
+      ].join('\n')
+      const warnings = validate(content)
+      expect(warnings.every(w => !w.warning.includes('absolute paths'))).toBe(true)
+    })
   })
 })

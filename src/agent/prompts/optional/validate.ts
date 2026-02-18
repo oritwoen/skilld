@@ -37,3 +37,11 @@ export function checkSourcePaths(content: string): SectionValidationWarning[] {
     return [{ warning: `${badPaths.length} source links missing .skilld/ prefix` }]
   return []
 }
+
+/** Warns if source links use absolute filesystem paths instead of relative ./.skilld/ paths */
+export function checkAbsolutePaths(content: string): SectionValidationWarning[] {
+  const absPaths = content.match(/\[source\]\(\/[^)]+\)/g)
+  if (absPaths?.length)
+    return [{ warning: `${absPaths.length} source links use absolute paths — must use relative ./.skilld/ paths` }]
+  return []
+}

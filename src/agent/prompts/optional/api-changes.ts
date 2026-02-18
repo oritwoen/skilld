@@ -1,6 +1,6 @@
 import type { PromptSection, ReferenceWeight, SectionContext, SectionValidationWarning } from './types.ts'
 import { maxItems, maxLines, releaseBoost } from './budget.ts'
-import { checkLineCount, checkSourceCoverage, checkSourcePaths, checkSparseness } from './validate.ts'
+import { checkAbsolutePaths, checkLineCount, checkSourceCoverage, checkSourcePaths, checkSparseness } from './validate.ts'
 
 export function apiChangesSection({ packageName, version, hasReleases, hasChangelog, hasDocs, hasIssues, hasDiscussions, pkgFiles, features, enabledSectionCount, releaseCount }: SectionContext): PromptSection {
   const [, major, minor] = version?.match(/^(\d+)\.(\d+)/) ?? []
@@ -79,6 +79,7 @@ The "Older" column means ≤ v${Number(major) - 2}.x — these changes are NOT u
         ...checkSparseness(content),
         ...checkSourceCoverage(content, 0.8),
         ...checkSourcePaths(content),
+        ...checkAbsolutePaths(content),
       ]
       // Every detailed item needs BREAKING/DEPRECATED/NEW label
       const detailedBullets = (content.match(/^- /gm) || []).length

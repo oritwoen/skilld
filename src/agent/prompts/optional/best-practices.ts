@@ -1,6 +1,6 @@
 import type { PromptSection, ReferenceWeight, SectionContext, SectionValidationWarning } from './types.ts'
 import { maxItems, maxLines, releaseBoost } from './budget.ts'
-import { checkLineCount, checkSourceCoverage, checkSourcePaths, checkSparseness } from './validate.ts'
+import { checkAbsolutePaths, checkLineCount, checkSourceCoverage, checkSourcePaths, checkSparseness } from './validate.ts'
 
 export function bestPracticesSection({ packageName, hasIssues, hasDiscussions, hasReleases, hasChangelog, hasDocs, pkgFiles, features, enabledSectionCount, releaseCount, version }: SectionContext): PromptSection {
   const [,, minor] = version?.match(/^(\d+)\.(\d+)/) ?? []
@@ -44,6 +44,7 @@ export function bestPracticesSection({ packageName, hasIssues, hasDiscussions, h
         ...checkSparseness(content),
         ...checkSourceCoverage(content, 0.8),
         ...checkSourcePaths(content),
+        ...checkAbsolutePaths(content),
       ]
       // Code block density — warn if >50% of items have code blocks
       const bullets = (content.match(/^- /gm) || []).length
