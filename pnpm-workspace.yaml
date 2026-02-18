@@ -1,6 +1,13 @@
+catalogMode: prefer
+
+shellEmulator: true
+
+trustPolicy: no-downgrade
 packages:
   - playground
 
+overrides:
+  global-agent: ^4.1.2
 catalog:
   '@mdream/crawl': ^0.16.0
   '@types/semver': ^7.7.1
@@ -13,8 +20,6 @@ catalog:
   std-env: ^3.10.0
   tsx: ^4.21.0
   unagent: ^0.0.8
-
-catalogMode: prefer
 
 catalogs:
   deps:
@@ -47,10 +52,3 @@ catalogs:
 
 onlyBuiltDependencies:
   - esbuild
-
-overrides:
-  global-agent: ^4.1.2
-
-shellEmulator: true
-
-trustPolicy: no-downgrade
