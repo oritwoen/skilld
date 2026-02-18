@@ -47,9 +47,12 @@ export function generateSkillMd(opts: SkillOptions): string {
   const header = generatePackageHeader(opts)
   const search = !opts.eject && opts.features?.search !== false ? generateSearchBlock(opts.name, opts.hasIssues, opts.hasReleases) : ''
   // Eject mode: rewrite .skilld/ paths to ./references/ in LLM-generated body
-  const body = opts.body && opts.eject
-    ? opts.body.replace(/\.\/\.skilld\//g, './references/')
-    : opts.body
+  // Then strip [source](./references/pkg/...) links since pkg/ is not ejected
+  let body = opts.body
+  if (body && opts.eject) {
+    body = body.replace(/\.\/\.skilld\//g, './references/')
+    body = body.replace(/\s*\[source\]\(\.\/references\/pkg\/[^)]*\)/gi, '')
+  }
   const content = body
     ? search ? `${header}\n\n${search}\n\n${body}` : `${header}\n\n${body}`
     : search ? `${header}\n\n${search}` : header
