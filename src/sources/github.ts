@@ -112,6 +112,29 @@ function filterDocFiles(files: string[], pathPrefix: string): string[] {
   return files.filter(f => f.startsWith(pathPrefix) && /\.(?:md|mdx)$/.test(f))
 }
 
+const FRAMEWORK_NAMES = new Set(['vue', 'react', 'solid', 'angular', 'svelte', 'preact', 'lit', 'qwik'])
+
+/**
+ * Filter out docs for other frameworks when the package targets a specific one.
+ * e.g. @tanstack/vue-query → keep vue + shared docs, exclude react/solid/angular
+ */
+function filterFrameworkDocs(files: string[], packageName?: string): string[] {
+  if (!packageName)
+    return files
+  const shortName = packageName.replace(/^@.*\//, '')
+  const targetFramework = [...FRAMEWORK_NAMES].find(fw => shortName.includes(fw))
+  if (!targetFramework)
+    return files
+
+  const frameworkPattern = new RegExp(`(?:^|/)(?:framework/)?(?:${[...FRAMEWORK_NAMES].join('|')})/`)
+  if (!files.some(f => frameworkPattern.test(f)))
+    return files
+
+  const otherFrameworks = [...FRAMEWORK_NAMES].filter(fw => fw !== targetFramework)
+  const excludePattern = new RegExp(`(?:^|/)(?:framework/)?(?:${otherFrameworks.join('|')})/`)
+  return files.filter(f => !excludePattern.test(f))
+}
+
 /** Known noise paths to exclude from doc discovery */
 const NOISE_PATTERNS = [
   /^\.changeset\//,
@@ -195,14 +218,24 @@ function scoreDocDir(dir: string, fileCount: number): number {
 
 /**
  * Discover doc files in non-standard locations.
- * First tries to find clusters of md/mdx files in paths containing /docs/.
+ * First tries to scope to sub-package dir in monorepos.
+ * Then looks for clusters of md/mdx files in paths containing /docs/.
  * Falls back to finding the directory with the most markdown files (≥5).
  */
-function discoverDocFiles(allFiles: string[]): DiscoveredDocs | null {
+function discoverDocFiles(allFiles: string[], packageName?: string): DiscoveredDocs | null {
   const mdFiles = allFiles
     .filter(f => /\.(?:md|mdx)$/.test(f))
     .filter(f => !NOISE_PATTERNS.some(p => p.test(f)))
     .filter(f => f.includes('/'))
+
+  // Strategy 0: Scope to sub-package in monorepos
+  if (packageName?.includes('/')) {
+    const shortName = packageName.split('/').pop()!.toLowerCase()
+    const subPkgPrefix = `packages/${shortName}/`
+    const subPkgFiles = mdFiles.filter(f => f.startsWith(subPkgPrefix))
+    if (subPkgFiles.length >= 3)
+      return { files: subPkgFiles, prefix: subPkgPrefix }
+  }
 
   // Strategy 1: Look for /docs/ clusters (existing behavior)
   const docsGroups = new Map<string, string[]>()
@@ -303,13 +336,16 @@ export async function fetchGitDocs(owner: string, repo: string, version: string,
 
   // Fallback: discover docs in nested paths (monorepos, content collections)
   if (docs.length === 0) {
-    const discovered = discoverDocFiles(tag.files)
+    const discovered = discoverDocFiles(tag.files, packageName)
     if (discovered) {
       docs = discovered.files
       docsPrefix = discovered.prefix || undefined
       allFiles = tag.files
     }
   }
+
+  // Filter out docs for other frameworks (e.g. keep vue/, exclude react/)
+  docs = filterFrameworkDocs(docs, packageName)
 
   if (docs.length === 0)
     return null

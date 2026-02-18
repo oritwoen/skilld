@@ -379,6 +379,18 @@ const REPO_REGISTRY: Record<string, RepoEntry> = {
     },
   },
 
+  // ── UI Frameworks ──
+
+  'quasarframework/quasar': {
+    owner: 'quasarframework',
+    repo: 'quasar',
+    homepage: 'https://quasar.dev',
+    crawlUrl: 'https://quasar.dev/**',
+    packages: {
+      quasar: { primary: true },
+    },
+  },
+
   // ── Animation ──
 
   'motiondivision/motion-vue': {

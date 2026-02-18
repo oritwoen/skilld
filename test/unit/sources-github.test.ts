@@ -172,6 +172,73 @@ describe('sources/github', () => {
       expect(result).toBeNull()
     })
 
+    it('scopes @vueuse/math to packages/math/ in monorepo', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({
+        meta: { sha: 'abc' },
+        files: [
+          // packages/core has many more docs
+          { path: 'packages/core/useStorage/index.md', mode: '100644', sha: 'a', size: 100 },
+          { path: 'packages/core/useFetch/index.md', mode: '100644', sha: 'b', size: 100 },
+          { path: 'packages/core/useToggle/index.md', mode: '100644', sha: 'c', size: 100 },
+          { path: 'packages/core/useState/index.md', mode: '100644', sha: 'd', size: 100 },
+          { path: 'packages/core/useRef/index.md', mode: '100644', sha: 'e', size: 100 },
+          // packages/math has fewer but sufficient
+          { path: 'packages/math/useAbs/index.md', mode: '100644', sha: 'f', size: 100 },
+          { path: 'packages/math/useSum/index.md', mode: '100644', sha: 'g', size: 100 },
+          { path: 'packages/math/useCeil/index.md', mode: '100644', sha: 'h', size: 100 },
+          { path: 'packages/math/useFloor/index.md', mode: '100644', sha: 'i', size: 100 },
+          { path: 'README.md', mode: '100644', sha: 'j', size: 50 },
+        ],
+      }) })
+
+      const result = await fetchGitDocs('vueuse', 'vueuse', '1.0.0', '@vueuse/math')
+
+      expect(result).not.toBeNull()
+      expect(result!.files.every(f => f.startsWith('packages/math/'))).toBe(true)
+      expect(result!.files).toHaveLength(4)
+    })
+
+    it('filters framework-specific docs for @tanstack/vue-query', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({
+        meta: { sha: 'abc' },
+        files: [
+          { path: 'docs/vue/overview.md', mode: '100644', sha: 'a', size: 100 },
+          { path: 'docs/vue/guides.md', mode: '100644', sha: 'b', size: 100 },
+          { path: 'docs/react/overview.md', mode: '100644', sha: 'c', size: 100 },
+          { path: 'docs/react/guides.md', mode: '100644', sha: 'd', size: 100 },
+          { path: 'docs/solid/overview.md', mode: '100644', sha: 'e', size: 100 },
+          { path: 'docs/shared/core.md', mode: '100644', sha: 'f', size: 100 },
+        ],
+      }) })
+
+      const result = await fetchGitDocs('TanStack', 'query', '5.0.0', '@tanstack/vue-query')
+
+      expect(result).not.toBeNull()
+      // Should keep vue and shared docs
+      expect(result!.files).toContain('docs/vue/overview.md')
+      expect(result!.files).toContain('docs/vue/guides.md')
+      expect(result!.files).toContain('docs/shared/core.md')
+      // Should exclude react and solid
+      expect(result!.files).not.toContain('docs/react/overview.md')
+      expect(result!.files).not.toContain('docs/solid/overview.md')
+    })
+
+    it('keeps all docs for @tanstack/query-core (no framework hint)', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({
+        meta: { sha: 'abc' },
+        files: [
+          { path: 'docs/vue/overview.md', mode: '100644', sha: 'a', size: 100 },
+          { path: 'docs/react/overview.md', mode: '100644', sha: 'b', size: 100 },
+          { path: 'docs/shared/core.md', mode: '100644', sha: 'c', size: 100 },
+        ],
+      }) })
+
+      const result = await fetchGitDocs('TanStack', 'query', '5.0.0', '@tanstack/query-core')
+
+      expect(result).not.toBeNull()
+      expect(result!.files).toHaveLength(3)
+    })
+
     it('returns null when tag not found', async () => {
       // findGitTag tries: v1.0.0, 1.0.0, then fallback branches main, master
       mockFetch
