@@ -21,7 +21,7 @@ export const models: Record<string, CliModelEntry> = {
   'gpt-5.1-codex-mini': { model: 'gpt-5.1-codex-mini', name: 'GPT-5.1 Codex Mini', hint: 'Optimized for codex, cheaper & faster', recommended: true },
 }
 
-export function buildArgs(model: string, skillDir: string, _symlinkDirs: string[]): string[] {
+export function buildArgs(model: string, _skillDir: string, _symlinkDirs: string[]): string[] {
   return [
     'exec',
     '--json',
