@@ -2,16 +2,14 @@
  * OpenAI Codex CLI — exec subcommand with JSON output
  * Prompt passed via stdin with `-` sentinel
  *
- * Real event types observed:
- * - thread.started → session start (thread_id)
+ * Event types:
  * - turn.started / turn.completed → turn lifecycle + usage
  * - item.started → command_execution in progress
- * - item.completed → agent_message (text), reasoning, command_execution (result)
+ * - item.completed → agent_message (text), command_execution (result), file_change (apply_patch)
  * - error / turn.failed → errors
  */
 
 import type { CliModelEntry, ParsedEvent } from './types.ts'
-import { join } from 'pathe'
 
 export const cli = 'codex' as const
 export const agentId = 'codex' as const
@@ -23,19 +21,19 @@ export const models: Record<string, CliModelEntry> = {
   'gpt-5.1-codex-mini': { model: 'gpt-5.1-codex-mini', name: 'GPT-5.1 Codex Mini', hint: 'Optimized for codex, cheaper & faster', recommended: true },
 }
 
-export function buildArgs(model: string, skillDir: string, symlinkDirs: string[]): string[] {
-  const skilldDir = join(skillDir, '.skilld')
+export function buildArgs(model: string, skillDir: string, _symlinkDirs: string[]): string[] {
   return [
     'exec',
     '--json',
+    '--ephemeral',
     '--model',
     model,
+    // Permissions aligned with Claude's scoped model:
+    // --full-auto = --sandbox workspace-write + --ask-for-approval on-request
+    //   → writes scoped to CWD (.skilld/, set in spawn), reads unrestricted, network blocked
+    // Shell remains enabled for `npx -y skilld search/validate` (no per-command allowlist in Codex)
+    // --ephemeral → no session persistence (equivalent to Claude's --no-session-persistence)
     '--full-auto',
-    '--writeable-dirs',
-    skilldDir,
-    '--add-dir',
-    skillDir,
-    ...symlinkDirs.flatMap(d => ['--add-dir', d]),
     '-',
   ]
 }
@@ -55,6 +53,11 @@ export function parseLine(line: string): ParsedEvent {
         const cmd = item.command || ''
         const writeContent = (/^cat\s*>|>/.test(cmd)) ? item.aggregated_output : undefined
         return { toolName: 'Bash', toolHint: `(${item.aggregated_output.length} chars output)`, writeContent }
+      }
+      // apply_patch completed — file written directly to disk
+      if (item.type === 'file_change' && item.changes?.length) {
+        const paths = item.changes.map((c: { path: string, kind: string }) => c.path).join(', ')
+        return { toolName: 'Write', toolHint: paths }
       }
     }
 
