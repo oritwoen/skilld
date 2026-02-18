@@ -16,6 +16,7 @@ describe('agent/skill', () => {
       expect(result).toContain('name: vue-skilld')
       expect(result).toContain('metadata:')
       expect(result).toContain('  version: 3.4.0')
+      expect(result).toMatch(/generated_at: \d{4}-\d{2}-\d{2}/)
       expect(result).toContain('Progressive JavaScript framework. ALWAYS use when editing or working with *.vue files or code importing \\"vue\\". Consult for debugging, best practices, or modifying vue.')
       expect(result).toContain('# Vue')
     })
@@ -144,6 +145,34 @@ describe('agent/skill', () => {
       expect(result).toContain('./.skilld/releases/_INDEX.md')
     })
 
+    it('strips pkg source links from body in eject mode', () => {
+      const result = generateSkillMd({
+        name: 'vue',
+        version: '3.4.0',
+        body: 'Some text [source](./.skilld/pkg/src/index.ts) more text [source](./.skilld/docs/guide.md)',
+        relatedSkills: [],
+        eject: true,
+      })
+
+      // pkg source links should be stripped
+      expect(result).not.toContain('./references/pkg/')
+      // non-pkg source links should be preserved (rewritten)
+      expect(result).toContain('[source](./references/docs/guide.md)')
+      expect(result).toContain('Some text')
+      expect(result).toContain('more text')
+    })
+
+    it('preserves pkg source links in non-eject mode', () => {
+      const result = generateSkillMd({
+        name: 'vue',
+        version: '3.4.0',
+        body: 'Text [source](./.skilld/pkg/src/index.ts)',
+        relatedSkills: [],
+      })
+
+      expect(result).toContain('[source](./.skilld/pkg/src/index.ts)')
+    })
+
     it('omits pkg references in eject mode', () => {
       const result = generateSkillMd({
         name: 'vue',
@@ -171,7 +200,10 @@ describe('agent/skill', () => {
 
     it('omits version if not provided', () => {
       const result = generateSkillMd({ name: 'pkg', relatedSkills: [] })
-      expect(result).not.toContain('version:')
+      expect(result).not.toContain('  version:')
+      // metadata block still present for generated_at
+      expect(result).toContain('metadata:')
+      expect(result).toMatch(/generated_at: \d{4}-\d{2}-\d{2}/)
     })
 
     it('includes releasedAt as short absolute date in version line', () => {
