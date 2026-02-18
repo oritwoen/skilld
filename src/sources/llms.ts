@@ -83,8 +83,11 @@ export async function downloadLlmsDocs(
       onProgress?.(link.url, completed++, llmsContent.links.length)
 
       const content = await fetchText(url)
-      if (content && content.length > 100)
-        return { url: link.url, title: link.title, content } as FetchedDoc
+      if (content && content.length > 100) {
+        // Normalize full URLs to just the pathname for cache paths
+        const docUrl = link.url.startsWith('http') ? new URL(link.url).pathname : link.url
+        return { url: docUrl, title: link.title, content } as FetchedDoc
+      }
       return null
     })),
   )
