@@ -52,6 +52,7 @@ import {
   fetchNpmPackage,
   fetchReadmeContent,
   fetchReleaseNotes,
+  filterFrameworkDocs,
   formatDiscussionAsMarkdown,
   formatIssueAsMarkdown,
   generateDiscussionIndex,
@@ -329,6 +330,7 @@ export async function fetchAndCacheResources(opts: {
 
   if (!useCache) {
     const cachedDocs: Array<{ path: string, content: string }> = []
+    const isFrameworkDoc = (path: string) => filterFrameworkDocs([path], packageName).length > 0
 
     // Try versioned git docs first
     if (resolved.gitDocsUrl && resolved.repoUrl) {
@@ -399,6 +401,8 @@ export async function fetchAndCacheResources(opts: {
                       onProgress(`Downloading supplementary doc ${done + 1}/${total}`)
                     })
                     for (const doc of docs) {
+                      if (!isFrameworkDoc(doc.url))
+                        continue
                       const localPath = doc.url.startsWith('/') ? doc.url.slice(1) : doc.url
                       supplementary.push({ path: join('llms-docs', ...localPath.split('/')), content: doc.content })
                     }
@@ -418,6 +422,8 @@ export async function fetchAndCacheResources(opts: {
       const crawledDocs = await fetchCrawledDocs(resolved.crawlUrl, onProgress).catch(() => [])
       if (crawledDocs.length > 0) {
         for (const doc of crawledDocs) {
+          if (!isFrameworkDoc(doc.path))
+            continue
           cachedDocs.push(doc)
           docsToIndex.push({
             id: doc.path,
@@ -448,6 +454,8 @@ export async function fetchAndCacheResources(opts: {
           })
 
           for (const doc of docs) {
+            if (!isFrameworkDoc(doc.url))
+              continue
             const localPath = doc.url.startsWith('/') ? doc.url.slice(1) : doc.url
             const cachePath = join('docs', ...localPath.split('/'))
             cachedDocs.push({ path: cachePath, content: doc.content })
@@ -470,6 +478,8 @@ export async function fetchAndCacheResources(opts: {
       const crawledDocs = await fetchCrawledDocs(crawlPattern, onProgress).catch(() => [])
       if (crawledDocs.length > 0) {
         for (const doc of crawledDocs) {
+          if (!isFrameworkDoc(doc.path))
+            continue
           cachedDocs.push(doc)
           docsToIndex.push({
             id: doc.path,

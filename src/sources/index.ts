@@ -38,6 +38,7 @@ export {
   fetchGitHubRepoMeta,
   fetchReadme,
   fetchReadmeContent,
+  filterFrameworkDocs,
   isShallowGitDocs,
   MIN_GIT_DOCS,
   resolveGitHubRepo,

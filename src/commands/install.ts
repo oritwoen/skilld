@@ -49,6 +49,7 @@ import {
   fetchGitDocs,
   fetchLlmsTxt,
   fetchReadmeContent,
+  filterFrameworkDocs,
   isShallowGitDocs,
   normalizeLlmsLinks,
   parseGitHubUrl,
@@ -270,6 +271,7 @@ export async function installCommand(opts: InstallOptions): Promise<void> {
 
     const cachedDocs: Array<{ path: string, content: string }> = []
     const docsToIndex: Array<{ id: string, content: string, metadata: Record<string, any> }> = []
+    const isFrameworkDoc = (path: string) => filterFrameworkDocs([path], pkgName).length > 0
 
     // Try git docs first
     if (resolved.gitDocsUrl && resolved.repoUrl) {
@@ -312,6 +314,8 @@ export async function installCommand(opts: InstallOptions): Promise<void> {
               if (llmsContent.links.length > 0) {
                 const docs = await downloadLlmsDocs(llmsContent, baseUrl)
                 for (const doc of docs) {
+                  if (!isFrameworkDoc(doc.url))
+                    continue
                   const localPath = doc.url.startsWith('/') ? doc.url.slice(1) : doc.url
                   cachedDocs.push({ path: join('llms-docs', ...localPath.split('/')), content: doc.content })
                 }
@@ -331,6 +335,8 @@ export async function installCommand(opts: InstallOptions): Promise<void> {
           const baseUrl = resolved.docsUrl || new URL(resolved.llmsUrl).origin
           const docs = await downloadLlmsDocs(llmsContent, baseUrl)
           for (const doc of docs) {
+            if (!isFrameworkDoc(doc.url))
+              continue
             const localPath = doc.url.startsWith('/') ? doc.url.slice(1) : doc.url
             const cachePath = join('docs', ...localPath.split('/'))
             cachedDocs.push({ path: cachePath, content: doc.content })

@@ -117,8 +117,10 @@ const FRAMEWORK_NAMES = new Set(['vue', 'react', 'solid', 'angular', 'svelte', '
 /**
  * Filter out docs for other frameworks when the package targets a specific one.
  * e.g. @tanstack/vue-query → keep vue + shared docs, exclude react/solid/angular
+ * Uses word-boundary matching to catch all path conventions:
+ *   framework/react/, 0.react/, api/ai-react.md, react-native.mdx, etc.
  */
-function filterFrameworkDocs(files: string[], packageName?: string): string[] {
+export function filterFrameworkDocs(files: string[], packageName?: string): string[] {
   if (!packageName)
     return files
   const shortName = packageName.replace(/^@.*\//, '')
@@ -126,12 +128,8 @@ function filterFrameworkDocs(files: string[], packageName?: string): string[] {
   if (!targetFramework)
     return files
 
-  const frameworkPattern = new RegExp(`(?:^|/)(?:framework/)?(?:${[...FRAMEWORK_NAMES].join('|')})/`)
-  if (!files.some(f => frameworkPattern.test(f)))
-    return files
-
   const otherFrameworks = [...FRAMEWORK_NAMES].filter(fw => fw !== targetFramework)
-  const excludePattern = new RegExp(`(?:^|/)(?:framework/)?(?:${otherFrameworks.join('|')})/`)
+  const excludePattern = new RegExp(`\\b(?:${otherFrameworks.join('|')})\\b`)
   return files.filter(f => !excludePattern.test(f))
 }
 
