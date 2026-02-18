@@ -38,22 +38,24 @@ export const validateCommandDef = defineCommand({
       description: 'Section type (api-changes, best-practices, custom). Auto-detected from heading if omitted.',
     },
   },
+
+  /* eslint-disable no-console */
   async run({ args }) {
     const filePath = args.file as string
     if (!existsSync(filePath)) {
-      console.error(`ERROR: File not found: ${filePath}`)
+      console.error(`File not found: ${filePath}`)
       process.exit(1)
     }
 
     const content = readFileSync(filePath, 'utf-8').trim()
     if (!content) {
-      console.error('ERROR: File is empty')
+      console.error('File is empty')
       process.exit(1)
     }
 
     const section = (args.section as SkillSection) || inferSection(content)
     if (!section) {
-      console.error('ERROR: Could not infer section type — use --section flag')
+      console.error('Could not infer section type — use --section flag')
       process.exit(1)
     }
 

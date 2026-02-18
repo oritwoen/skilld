@@ -32,7 +32,7 @@ export function checkSourceCoverage(content: string, minRatio = 0.8): SectionVal
 
 /** Warns if source links are missing .skilld/ prefix */
 export function checkSourcePaths(content: string): SectionValidationWarning[] {
-  const badPaths = content.match(/\[source\]\(\.\/(?!\.skilld\/)(docs|issues|discussions|releases|pkg|guide)\//g)
+  const badPaths = content.match(/\[source\]\(\.\/(docs|issues|discussions|releases|pkg|guide)\//g)
   if (badPaths?.length)
     return [{ warning: `${badPaths.length} source links missing .skilld/ prefix` }]
   return []
