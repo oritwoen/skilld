@@ -1,5 +1,6 @@
-import type { PromptSection, ReferenceWeight, SectionContext } from './types.ts'
+import type { PromptSection, ReferenceWeight, SectionContext, SectionValidationWarning } from './types.ts'
 import { maxItems, maxLines, releaseBoost } from './budget.ts'
+import { checkLineCount, checkSourceCoverage, checkSourcePaths, checkSparseness } from './validate.ts'
 
 export function apiChangesSection({ packageName, version, hasReleases, hasChangelog, hasDocs, hasIssues, hasDiscussions, pkgFiles, features, enabledSectionCount, releaseCount }: SectionContext): PromptSection {
   const [, major, minor] = version?.match(/^(\d+)\.(\d+)/) ?? []
@@ -67,8 +68,30 @@ export function apiChangesSection({ packageName, version, hasReleases, hasChange
 The "Older" column means ≤ v${Number(major) - 2}.x — these changes are NOT useful because anyone on v${major}.x already migrated past them.`
     : ''
 
+  const apiChangesMaxLines = maxLines(50, Math.round(80 * boost), enabledSectionCount)
+
   return {
     referenceWeights,
+
+    validate(content: string): SectionValidationWarning[] {
+      const warnings: SectionValidationWarning[] = [
+        ...checkLineCount(content, apiChangesMaxLines),
+        ...checkSparseness(content),
+        ...checkSourceCoverage(content, 0.8),
+        ...checkSourcePaths(content),
+      ]
+      // Every detailed item needs BREAKING/DEPRECATED/NEW label
+      const detailedBullets = (content.match(/^- /gm) || []).length
+      const labeledBullets = (content.match(/^- (?:BREAKING|DEPRECATED|NEW): /gm) || []).length
+      // Exclude "Also changed" compact line from the count
+      const alsoChangedItems = (content.match(/\*\*Also changed:\*\*/g) || []).length
+      if (detailedBullets > 2 && labeledBullets / (detailedBullets - alsoChangedItems || 1) < 0.8)
+        warnings.push({ warning: `Only ${labeledBullets}/${detailedBullets} items have BREAKING/DEPRECATED/NEW labels` })
+      // Heading required
+      if (!/^## API Changes/m.test(content))
+        warnings.push({ warning: 'Missing required "## API Changes" heading' })
+      return warnings
+    },
 
     task: `**Find new, deprecated, and renamed APIs from version history.** Focus exclusively on APIs that changed between versions — LLMs trained on older data will use the wrong names, wrong signatures, or non-existent functions.
 
@@ -98,7 +121,8 @@ Each item: BREAKING/DEPRECATED/NEW label + API name + what changed + source link
 **Tiered format:** Top-scoring items get full detailed entries. Remaining relevant items go in a compact "**Also changed:**" line at the end — API name + brief label, separated by \` · \`. This surfaces more changes without bloating the section.`,
 
     rules: [
-      `- **API Changes:** ${maxItems(6, Math.round(12 * boost), enabledSectionCount)} detailed items + compact "Also changed" line for remaining, MAX ${maxLines(50, Math.round(80 * boost), enabledSectionCount)} lines`,
+      `- **API Changes:** ${maxItems(6, Math.round(12 * boost), enabledSectionCount)} detailed items + compact "Also changed" line for remaining, MAX ${apiChangesMaxLines} lines`,
+      '- **Every detailed item MUST have a `[source](./.skilld/...)` link.** If you cannot cite a specific release, changelog entry, or migration doc, do NOT include the item',
       '- **Recency:** Only include changes from the current major version and the previous→current migration. Exclude changes from older major versions entirely — users already migrated past them',
       '- Focus on APIs that CHANGED, not general conventions or gotchas',
       '- New APIs get NEW: prefix, deprecated/breaking get BREAKING: or DEPRECATED: prefix',

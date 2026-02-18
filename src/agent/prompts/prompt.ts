@@ -3,7 +3,7 @@
  */
 
 import type { FeaturesConfig } from '../../core/config.ts'
-import type { CustomPrompt, PromptSection, SectionContext } from './optional/index.ts'
+import type { CustomPrompt, PromptSection, SectionContext, SectionValidationWarning } from './optional/index.ts'
 import { dirname } from 'pathe'
 import { getPackageRules } from '../../sources/package-registry.ts'
 import { apiChangesSection, bestPracticesSection, customSection } from './optional/index.ts'
@@ -164,6 +164,18 @@ function getSectionDef(section: SkillSection, ctx: SectionContext, customPrompt?
 }
 
 /**
+ * Get the validate function for a section using default context (validators use fixed thresholds).
+ * Returns null if section has no validator.
+ */
+export function getSectionValidator(section: SkillSection): ((content: string) => SectionValidationWarning[]) | null {
+  const ctx: SectionContext = { packageName: '' }
+  // Custom needs a dummy prompt to instantiate
+  const customPrompt = section === 'custom' ? { heading: 'Custom', body: '' } : undefined
+  const def = getSectionDef(section, ctx, customPrompt)
+  return def?.validate ?? null
+}
+
+/**
  * Build prompt for a single section
  */
 export function buildSectionPrompt(opts: BuildSkillPromptOptions & { section: SkillSection }): string {
@@ -222,6 +234,8 @@ ${rules.join('\n')}
 ## Output
 
 Write your final output to the file \`${skillDir}/.skilld/${outputFile}\` using the Write tool. Do NOT write to any other file path.
+
+After writing, run \`npx -y skilld validate ${skillDir}/.skilld/${outputFile}\` and fix any warnings before finishing.
 `
 }
 

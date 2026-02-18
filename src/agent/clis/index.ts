@@ -16,7 +16,7 @@ import { dirname, join } from 'pathe'
 import { readCachedSection, writeSections } from '../../cache/index.ts'
 import { sanitizeMarkdown } from '../../core/sanitize.ts'
 import { detectInstalledAgents } from '../detect.ts'
-import { buildAllSectionPrompts, SECTION_MERGE_ORDER, SECTION_OUTPUT_FILES } from '../prompts/index.ts'
+import { buildAllSectionPrompts, getSectionValidator, SECTION_MERGE_ORDER, SECTION_OUTPUT_FILES } from '../prompts/index.ts'
 import { agents } from '../registry.ts'
 import * as claude from './claude.ts'
 import * as codex from './codex.ts'
@@ -391,7 +391,9 @@ function optimizeSection(opts: OptimizeSectionOptions): Promise<SectionResult> {
         writeFileSync(outputPath, content)
       }
 
-      const warnings = content ? validateSectionOutput(content, section) : undefined
+      const validator = getSectionValidator(section)
+      const rawWarnings = content && validator ? validator(content) : []
+      const warnings: ValidationWarning[] = rawWarnings.map(w => ({ section, warning: w.warning }))
 
       resolve({
         section,
@@ -624,32 +626,6 @@ function shortenPath(p: string): string {
   // Keep just filename for other paths
   const parts = p.split('/')
   return parts.length > 2 ? `.../${parts.slice(-2).join('/')}` : p
-}
-
-// ── Validation ───────────────────────────────────────────────────────
-
-/** Max lines per section — generous thresholds (2x prompt guidance) to flag only egregious overruns */
-const SECTION_MAX_LINES: Record<string, number> = {
-  'api-changes': 210,
-  'best-practices': 300,
-  'custom': 160,
-}
-
-/** Validate a section's output against heuristic quality checks */
-function validateSectionOutput(content: string, section: SkillSection): ValidationWarning[] {
-  const warnings: ValidationWarning[] = []
-  const lines = content.split('\n').length
-  const maxLines = SECTION_MAX_LINES[section]
-
-  if (maxLines && lines > maxLines * 1.5) {
-    warnings.push({ section, warning: `Output ${lines} lines exceeds ${maxLines} max by >50%` })
-  }
-
-  if (lines < 3) {
-    warnings.push({ section, warning: `Output only ${lines} lines — likely too sparse` })
-  }
-
-  return warnings
 }
 
 /** Clean a single section's LLM output: strip markdown fences, frontmatter, sanitize */

@@ -145,7 +145,7 @@ async function brandLoader<T>(work: () => Promise<T>, minMs = 1500): Promise<T> 
 
 // ── Subcommands (lazy-loaded) ──
 
-const SUBCOMMAND_NAMES = ['add', 'eject', 'update', 'info', 'list', 'config', 'remove', 'install', 'uninstall', 'search', 'cache']
+const SUBCOMMAND_NAMES = ['add', 'eject', 'update', 'info', 'list', 'config', 'remove', 'install', 'uninstall', 'search', 'cache', 'validate']
 
 // ── Main command ──
 
@@ -170,6 +170,7 @@ const main = defineCommand({
     uninstall: () => import('./commands/uninstall.ts').then(m => m.uninstallCommandDef),
     search: () => import('./commands/search.ts').then(m => m.searchCommandDef),
     cache: () => import('./commands/cache.ts').then(m => m.cacheCommandDef),
+    validate: () => import('./commands/validate.ts').then(m => m.validateCommandDef),
   },
   async run({ args }) {
     // Guard: citty always calls parent run() after subcommand dispatch.

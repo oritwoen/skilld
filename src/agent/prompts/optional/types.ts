@@ -9,12 +9,18 @@ export interface ReferenceWeight {
   useFor: string
 }
 
+export interface SectionValidationWarning {
+  warning: string
+}
+
 export interface PromptSection {
   task?: string
   format?: string
   rules?: string[]
   /** Per-reference usefulness ratings to guide LLM attention */
   referenceWeights?: ReferenceWeight[]
+  /** Validate generated content for this section */
+  validate?: (content: string) => SectionValidationWarning[]
 }
 
 export interface SectionContext {

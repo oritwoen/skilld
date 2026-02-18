@@ -1,5 +1,6 @@
-import type { PromptSection, ReferenceWeight, SectionContext } from './types.ts'
+import type { PromptSection, ReferenceWeight, SectionContext, SectionValidationWarning } from './types.ts'
 import { maxItems, maxLines, releaseBoost } from './budget.ts'
+import { checkLineCount, checkSourceCoverage, checkSourcePaths, checkSparseness } from './validate.ts'
 
 export function bestPracticesSection({ packageName, hasIssues, hasDiscussions, hasReleases, hasChangelog, hasDocs, pkgFiles, features, enabledSectionCount, releaseCount, version }: SectionContext): PromptSection {
   const [,, minor] = version?.match(/^(\d+)\.(\d+)/) ?? []
@@ -32,8 +33,28 @@ export function bestPracticesSection({ packageName, hasIssues, hasDiscussions, h
     referenceWeights.push({ name: 'Changelog', path: `./.skilld/${hasChangelog}`, score: 3, useFor: 'Only for new patterns introduced in recent versions' })
   }
 
+  const bpMaxLines = maxLines(80, Math.round(150 * boost), enabledSectionCount)
+
   return {
     referenceWeights,
+
+    validate(content: string): SectionValidationWarning[] {
+      const warnings: SectionValidationWarning[] = [
+        ...checkLineCount(content, bpMaxLines),
+        ...checkSparseness(content),
+        ...checkSourceCoverage(content, 0.8),
+        ...checkSourcePaths(content),
+      ]
+      // Code block density — warn if >50% of items have code blocks
+      const bullets = (content.match(/^- /gm) || []).length
+      const codeBlocks = (content.match(/^```/gm) || []).length / 2 // open+close pairs
+      if (bullets > 2 && codeBlocks / bullets > 0.5)
+        warnings.push({ warning: `${Math.round(codeBlocks)}/${bullets} items have code blocks — prefer concise descriptions with source links` })
+      // Heading required
+      if (!/^## Best Practices/m.test(content))
+        warnings.push({ warning: 'Missing required "## Best Practices" heading' })
+      return warnings
+    },
 
     task: `**Extract non-obvious best practices from the references.** Focus on recommended patterns the LLM wouldn't already know: idiomatic usage, preferred configurations, performance tips, patterns that differ from what a developer would assume. Surface new patterns from recent minor releases that may post-date training data.
 
@@ -46,26 +67,26 @@ ${searchHints.length ? `\nSearch: ${searchHints.join(', ')}` : ''}`,
 
 - Use ${packageName}'s built-in \`createX()\` helper over manual wiring — handles cleanup and edge cases automatically [source](./.skilld/docs/api.md)
 
-\`\`\`ts
-// Preferred
-const instance = createX({ ... })
-
-// Avoid — misses cleanup, error boundaries
-const instance = new X()
-instance.init({ ... })
-\`\`\`
-
 - Pass config through \`defineConfig()\` — enables type inference and plugin merging [source](./.skilld/docs/config.md)
 
 - Prefer \`useComposable()\` over direct imports in reactive contexts — ensures proper lifecycle binding [source](./.skilld/docs/composables.md)
+
+- Set \`retryDelay\` to exponential backoff for production resilience — default fixed delay causes thundering herd under load [source](./.skilld/docs/advanced.md)
+
+\`\`\`ts
+// Only when the pattern cannot be understood from the description alone
+const client = createX({ retryDelay: attempt => Math.min(1000 * 2 ** attempt, 30000) })
+\`\`\`
 \`\`\`
 </format-example>
 
-Each item: markdown list item (-) + ${packageName}-specific pattern + why it's preferred + source link. Code block only when the pattern isn't obvious from the title. Use the most relevant language tag (ts, vue, css, json, etc). Every example must be specific to ${packageName} — never generic TypeScript/JS advice. All source links MUST use \`./.skilld/\` prefix (e.g., \`[source](./.skilld/docs/guide.md)\`). Do NOT use emoji — use plain text markers only.`,
+Each item: markdown list item (-) + ${packageName}-specific pattern + why it's preferred + \`[source](./.skilld/...)\` link. **Prefer concise descriptions over inline code** — the source link points the agent to full examples in the docs. Only add a code block when the pattern genuinely cannot be understood from the description alone (e.g., non-obvious syntax, multi-step wiring). Most items should be description + source link only. All source links MUST use \`./.skilld/\` prefix. Do NOT use emoji — use plain text markers only.`,
 
     rules: [
       `- **${maxItems(4, Math.round(10 * boost), enabledSectionCount)} best practice items**`,
-      `- **MAX ${maxLines(80, Math.round(150 * boost), enabledSectionCount)} lines** for best practices section`,
+      `- **MAX ${bpMaxLines} lines** for best practices section`,
+      '- **Every item MUST have a `[source](./.skilld/...)` link.** If you cannot cite a specific reference file, do NOT include the item — unsourced items risk hallucination and will be rejected',
+      '- **Minimize inline code.** Most items should be description + source link only. The source file contains full examples the agent can read. Only add a code block when the pattern is unintuitable from the description (non-obvious syntax, surprising argument order, multi-step wiring). Aim for at most 1 in 4 items having a code block',
       pkgFiles?.some(f => f.endsWith('.d.ts'))
         ? '- **Verify before including:** Confirm file paths exist via Glob/Read before linking. Confirm functions/composables are real exports in `./.skilld/pkg/` `.d.ts` files before documenting. If you cannot find an export, do NOT include it'
         : '- **Verify before including:** Confirm file paths exist via Glob/Read before linking. Only document APIs explicitly named in docs, release notes, or changelogs — do NOT infer API names from similar packages',
