@@ -69,6 +69,8 @@ const CLI_MODELS_MAP: Partial<Record<OptimizeModel, string>> = {
   'haiku': 'claude',
   'gemini-3-pro': 'gemini',
   'gemini-3-flash': 'gemini',
+  'gpt-5.3-codex': 'codex',
+  'gpt-5.3-codex-spark': 'codex',
   'gpt-5.2-codex': 'codex',
   'gpt-5.1-codex-max': 'codex',
   'gpt-5.2': 'codex',
