@@ -29,6 +29,8 @@ export type OptimizeModel
     | 'haiku'
     | 'gemini-3-pro'
     | 'gemini-3-flash'
+    | 'gpt-5.3-codex'
+    | 'gpt-5.3-codex-spark'
     | 'gpt-5.2-codex'
     | 'gpt-5.1-codex-max'
     | 'gpt-5.2'

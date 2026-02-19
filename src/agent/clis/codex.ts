@@ -15,6 +15,8 @@ export const cli = 'codex' as const
 export const agentId = 'codex' as const
 
 export const models: Record<string, CliModelEntry> = {
+  'gpt-5.3-codex': { model: 'gpt-5.3-codex', name: 'GPT-5.3 Codex', hint: 'Latest frontier Codex model' },
+  'gpt-5.3-codex-spark': { model: 'gpt-5.3-codex-spark', name: 'GPT-5.3 Codex Spark', hint: 'Faster GPT-5.3 Codex variant' },
   'gpt-5.2-codex': { model: 'gpt-5.2-codex', name: 'GPT-5.2 Codex', hint: 'Frontier agentic coding model' },
   'gpt-5.1-codex-max': { model: 'gpt-5.1-codex-max', name: 'GPT-5.1 Codex Max', hint: 'Codex-optimized flagship' },
   'gpt-5.2': { model: 'gpt-5.2', name: 'GPT-5.2', hint: 'Latest frontier model' },
