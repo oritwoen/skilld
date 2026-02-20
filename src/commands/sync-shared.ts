@@ -1123,8 +1123,7 @@ export interface EnhanceOptions {
 export async function enhanceSkillWithLLM(opts: EnhanceOptions): Promise<void> {
   const { packageName, version, skillDir, dirName, model, resolved, relatedSkills, hasIssues, hasDiscussions, hasReleases, hasChangelog, docsType, hasShippedDocs: shippedDocs, pkgFiles, force, debug, sections, customPrompt, packages, features, eject } = opts
 
-  // Eject mode: search index isn't built, so don't include search hints in prompts
-  const effectiveFeatures = eject && features ? { ...features, search: false } as FeaturesConfig : features
+  const effectiveFeatures = features
 
   const llmLog = p.taskLog({ title: `Agent exploring ${packageName}` })
   const docFiles = listReferenceFiles(skillDir)
