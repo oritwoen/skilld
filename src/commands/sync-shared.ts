@@ -1051,12 +1051,9 @@ export async function selectLlmConfig(presetModel?: OptimizeModel, message?: str
     return { model: presetModel, sections: DEFAULT_SECTIONS }
   }
 
-  // Non-interactive: auto-pick model with default sections
+  // Non-interactive (CI, agent, no TTY): skip generation unless model explicitly provided
   if (!isInteractive()) {
-    const model = await selectModel(true)
-    if (!model)
-      return null
-    return { model, sections: DEFAULT_SECTIONS }
+    return null
   }
 
   // Resolve default model (configured or recommended) without prompting
