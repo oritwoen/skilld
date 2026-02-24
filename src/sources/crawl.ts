@@ -24,7 +24,7 @@ export async function fetchCrawledDocs(
 
   onProgress?.(`Crawling ${url}`)
 
-  const results = await crawlAndGenerate({
+  const doCrawl = () => crawlAndGenerate({
     urls: [url],
     outputDir,
     driver: 'http',
@@ -36,6 +36,16 @@ export async function fetchCrawledDocs(
       onProgress?.(`Crawling ${progress.crawling.processed}/${progress.crawling.total} pages`)
     }
   })
+
+  let results = await doCrawl().catch((err) => {
+    onProgress?.(`Crawl failed: ${err?.message || err}`)
+    return []
+  })
+  // Retry once on transient failure (e.g. sitemap timeout)
+  if (results.length === 0) {
+    onProgress?.('Retrying crawl')
+    results = await doCrawl().catch(() => [])
+  }
 
   // Clean up temp dir
   rmSync(outputDir, { recursive: true, force: true })

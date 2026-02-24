@@ -321,12 +321,20 @@ export async function fetchAndCacheResources(opts: {
   from?: string
   onProgress: (message: string) => void
 }): Promise<FetchResult> {
-  const { packageName, resolved, version, useCache, onProgress } = opts
+  const { packageName, resolved, version, onProgress } = opts
   const features = opts.features ?? readConfig().features ?? defaultFeatures
+
+  // Retry fetch if cache is README-only but richer sources exist (likely transient failure)
+  const cacheInvalidated = opts.useCache
+    && resolved.crawlUrl
+    && detectDocsType(packageName, version, resolved.repoUrl, resolved.llmsUrl).docsType === 'readme'
+  const useCache = opts.useCache && !cacheInvalidated
   let docSource: string = resolved.readmeUrl || 'readme'
   let docsType: 'llms.txt' | 'readme' | 'docs' = 'readme'
   const docsToIndex: IndexDoc[] = []
   const warnings: string[] = []
+  if (cacheInvalidated)
+    warnings.push(`Retrying crawl for ${resolved.crawlUrl} (previous attempt only cached README)`)
 
   if (!useCache) {
     const cachedDocs: Array<{ path: string, content: string }> = []
@@ -419,7 +427,13 @@ export async function fetchAndCacheResources(opts: {
     // Try website crawl
     if (resolved.crawlUrl && cachedDocs.length === 0) {
       onProgress('Crawling website')
-      const crawledDocs = await fetchCrawledDocs(resolved.crawlUrl, onProgress).catch(() => [])
+      const crawledDocs = await fetchCrawledDocs(resolved.crawlUrl, onProgress).catch((err) => {
+        warnings.push(`Crawl failed for ${resolved.crawlUrl}: ${err?.message || err}`)
+        return []
+      })
+      if (crawledDocs.length === 0 && resolved.crawlUrl) {
+        warnings.push(`Crawl returned 0 docs from ${resolved.crawlUrl}`)
+      }
       if (crawledDocs.length > 0) {
         for (const doc of crawledDocs) {
           if (!isFrameworkDoc(doc.path))
@@ -475,7 +489,10 @@ export async function fetchAndCacheResources(opts: {
     if (resolved.docsUrl && !cachedDocs.some(d => d.path.startsWith('docs/'))) {
       const crawlPattern = resolved.crawlUrl || toCrawlPattern(resolved.docsUrl)
       onProgress('Crawling docs site')
-      const crawledDocs = await fetchCrawledDocs(crawlPattern, onProgress).catch(() => [])
+      const crawledDocs = await fetchCrawledDocs(crawlPattern, onProgress).catch((err) => {
+        warnings.push(`Crawl failed for ${crawlPattern}: ${err?.message || err}`)
+        return []
+      })
       if (crawledDocs.length > 0) {
         for (const doc of crawledDocs) {
           if (!isFrameworkDoc(doc.path))
