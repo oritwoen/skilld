@@ -37,7 +37,7 @@ catalogs:
     oxc-parser: ^0.114.0
     p-limit: ^7.3.0
     retriv: ^0.10.1
-    sqlite-vec: ^0.1.6
+    sqlite-vec: ^0.1.7-alpha.10
     typescript: 6.0.0-beta
     unist-util-visit: ^5.0.0
   dev-build:
