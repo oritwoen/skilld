@@ -83,8 +83,8 @@ catalogs:
       specifier: ^0.10.1
       version: 0.10.1
     sqlite-vec:
-      specifier: ^0.1.6
-      version: 0.1.6
+      specifier: ^0.1.7-alpha.10
+      version: 0.1.7-alpha.10
     typescript:
       specifier: 6.0.0-beta
       version: 6.0.0-beta
@@ -176,13 +176,13 @@ importers:
         version: 2.0.3
       retriv:
         specifier: catalog:deps
-        version: 0.10.1(@huggingface/transformers@3.8.1)(ai@6.0.68(zod@4.3.6))(sqlite-vec@0.1.6)(typescript@6.0.0-beta)
+        version: 0.10.1(@huggingface/transformers@3.8.1)(ai@6.0.68(zod@4.3.6))(sqlite-vec@0.1.7-alpha.10)(typescript@6.0.0-beta)
       semver:
         specifier: 'catalog:'
         version: 7.7.4
       sqlite-vec:
         specifier: catalog:deps
-        version: 0.1.6
+        version: 0.1.7-alpha.10
       std-env:
         specifier: 'catalog:'
         version: 3.10.0
@@ -191,7 +191,7 @@ importers:
         version: 6.0.0-beta
       unagent:
         specifier: 'catalog:'
-        version: 0.0.8(@huggingface/transformers@3.8.1)(ai@6.0.68(zod@4.3.6))(sqlite-vec@0.1.6)
+        version: 0.0.8(@huggingface/transformers@3.8.1)(ai@6.0.68(zod@4.3.6))(sqlite-vec@0.1.7-alpha.10)
       unist-util-visit:
         specifier: catalog:deps
         version: 5.1.0
@@ -3909,28 +3909,33 @@ packages:
   split@0.3.3:
     resolution: {integrity: sha512-wD2AeVmxXRBoX44wAycgjVpMhvbwdI2aZjCkvfNcH1YqHQvJVa1duWc73OyVGJUc05fhFaTZeQ/PYsrmyH0JVA==}
 
-  sqlite-vec-darwin-arm64@0.1.6:
-    resolution: {integrity: sha512-5duw/xhM3xE6BCQd//eAkyHgBp9FIwK6veldRhPG96dT6Zpjov3bG02RuE7JAQj0SVJYRW8bJwZ4LxqW0+Q7Dw==}
+  sqlite-vec-darwin-arm64@0.1.7-alpha.10:
+    resolution: {integrity: sha512-N5szkSqosdu8qwn1OuyotWOJUvEU3dTkWLyvWkb1+CVcz+SwTS1RTC/ttvhtWwgCCpvmvhs2hBXhdyWi4yJPvw==}
     cpu: [arm64]
     os: [darwin]
 
-  sqlite-vec-darwin-x64@0.1.6:
-    resolution: {integrity: sha512-MFkKjNfJ5pamFHhyTsrqdxALrjuvpSEZdu6Q/0vMxFa6sr5YlfabeT5xGqEbuH0iobsT1Hca5EZxLhLy0jHYkw==}
+  sqlite-vec-darwin-x64@0.1.7-alpha.10:
+    resolution: {integrity: sha512-djqhGx1PSaRGOnO7xSdoECMFMT2ukqovQau6Q80zCxeryF0TG5fQUcD3QWHnFdiGuv1EBI8vg0Nogo1l1/16+A==}
     cpu: [x64]
     os: [darwin]
 
-  sqlite-vec-linux-x64@0.1.6:
-    resolution: {integrity: sha512-411tWPswywIzdkp+zsAUav4A03f0FjnNfpZFlOw8fBebFR74RSFkwM8Xryf18gLHiYAXUBI4mjY9+/xjwBjKpg==}
+  sqlite-vec-linux-arm64@0.1.7-alpha.10:
+    resolution: {integrity: sha512-sceY1waSQUbcSxsm0ZO7vrexqEyktMr87FKh3z9ybUJX+MeYlzOlks9gYouf8VxJI24yAVKUc9c8RpK58M1W6A==}
+    cpu: [arm64]
+    os: [linux]
+
+  sqlite-vec-linux-x64@0.1.7-alpha.10:
+    resolution: {integrity: sha512-4J3Mxy0pv7j1xbc90uZz6AmiVc2q29ujSEucLiDKIVjCcKKn43VaIbAfBRx1cu4a6IYSAQ/3s9NAG1VxmVrNjA==}
     cpu: [x64]
     os: [linux]
 
-  sqlite-vec-windows-x64@0.1.6:
-    resolution: {integrity: sha512-Dy9/KlKJDrjuQ/RRkBqGkMZuSh5bTJDMMOFZft9VJZaXzpYxb5alpgdvD4bbKegpDdfPi2BT4+PBivsNJSlMoQ==}
+  sqlite-vec-windows-x64@0.1.7-alpha.10:
+    resolution: {integrity: sha512-yLMKOxqXBlowwQSH/G/lpZ6Nax/KCV5+KGb5p9ANmNohB/ty/O7OEoCZ7kFpzm/FvKBjT/LfKA8qIKL2GrJEJQ==}
     cpu: [x64]
     os: [win32]
 
-  sqlite-vec@0.1.6:
-    resolution: {integrity: sha512-hQZU700TU2vWPXZYDULODjKXeMio6rKX7UpPN7Tq9qjPW671IEgURGrcC5LDBMl0q9rBvAuzmcmJmImMqVibYQ==}
+  sqlite-vec@0.1.7-alpha.10:
+    resolution: {integrity: sha512-Nfli+/gNS12O8Fn72qQ6DKQJto89t/fhSVclAx8G+QOC0l6mSzDvy4AQfxjuCs6mQAnQQVWpjRG266shewoUtg==}
 
   stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
@@ -8197,11 +8202,11 @@ snapshots:
 
   ret@0.5.0: {}
 
-  retriv@0.10.1(@huggingface/transformers@3.8.1)(ai@6.0.68(zod@4.3.6))(sqlite-vec@0.1.6)(typescript@6.0.0-beta):
+  retriv@0.10.1(@huggingface/transformers@3.8.1)(ai@6.0.68(zod@4.3.6))(sqlite-vec@0.1.7-alpha.10)(typescript@6.0.0-beta):
     optionalDependencies:
       '@huggingface/transformers': 3.8.1
       ai: 6.0.68(zod@4.3.6)
-      sqlite-vec: 0.1.6
+      sqlite-vec: 0.1.7-alpha.10
       typescript: 6.0.0-beta
 
   retry@0.12.0: {}
@@ -8466,24 +8471,28 @@ snapshots:
     dependencies:
       through: 2.3.8
 
-  sqlite-vec-darwin-arm64@0.1.6:
+  sqlite-vec-darwin-arm64@0.1.7-alpha.10:
     optional: true
 
-  sqlite-vec-darwin-x64@0.1.6:
+  sqlite-vec-darwin-x64@0.1.7-alpha.10:
     optional: true
 
-  sqlite-vec-linux-x64@0.1.6:
+  sqlite-vec-linux-arm64@0.1.7-alpha.10:
     optional: true
 
-  sqlite-vec-windows-x64@0.1.6:
+  sqlite-vec-linux-x64@0.1.7-alpha.10:
     optional: true
 
-  sqlite-vec@0.1.6:
+  sqlite-vec-windows-x64@0.1.7-alpha.10:
+    optional: true
+
+  sqlite-vec@0.1.7-alpha.10:
     optionalDependencies:
-      sqlite-vec-darwin-arm64: 0.1.6
-      sqlite-vec-darwin-x64: 0.1.6
-      sqlite-vec-linux-x64: 0.1.6
-      sqlite-vec-windows-x64: 0.1.6
+      sqlite-vec-darwin-arm64: 0.1.7-alpha.10
+      sqlite-vec-darwin-x64: 0.1.7-alpha.10
+      sqlite-vec-linux-arm64: 0.1.7-alpha.10
+      sqlite-vec-linux-x64: 0.1.7-alpha.10
+      sqlite-vec-windows-x64: 0.1.7-alpha.10
 
   stackback@0.0.2: {}
 
@@ -8701,7 +8710,7 @@ snapshots:
 
   uint8array-extras@1.5.0: {}
 
-  unagent@0.0.8(@huggingface/transformers@3.8.1)(ai@6.0.68(zod@4.3.6))(sqlite-vec@0.1.6):
+  unagent@0.0.8(@huggingface/transformers@3.8.1)(ai@6.0.68(zod@4.3.6))(sqlite-vec@0.1.7-alpha.10):
     dependencies:
       croner: 9.1.0
       hookable: 6.0.1
@@ -8711,7 +8720,7 @@ snapshots:
     optionalDependencies:
       '@huggingface/transformers': 3.8.1
       ai: 6.0.68(zod@4.3.6)
-      sqlite-vec: 0.1.6
+      sqlite-vec: 0.1.7-alpha.10
 
   undici-types@7.16.0: {}
 
