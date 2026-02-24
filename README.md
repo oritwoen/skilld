@@ -59,6 +59,44 @@ If you need to re-configure skilld, just run `npx -y skilld config` to update yo
 - **LLM is optional** - Skills work without any LLM, but enhancing with one makes them significantly better.
 - **Multi-agent** - Run `skilld install --agent gemini-cli` to sync skills to another agent. The doc cache is shared.
 
+## Installation
+
+### Global
+
+Install globally to use `skilld` across all projects without `npx`:
+
+```bash
+npm install -g skilld
+# or
+pnpm add -g skilld
+```
+
+Then run `skilld` in any project directory.
+
+### Per-Project
+
+If you'd like to install skilld and track the lock file references, add it as a dev dependency:
+
+```bash
+npm install -D skilld
+# or
+yarn add -D skilld
+# or
+pnpm add -D skilld
+```
+
+### Automatic Updates
+
+Add to `package.json` to keep skills fresh on install:
+
+```json
+{
+  "scripts": {
+    "prepare": "skilld update -b"
+  }
+}
+```
+
 ## FAQ
 
 ### Why don't the skills run?
@@ -84,30 +122,6 @@ However, always be cautious when using skills from untrusted sources.
 ### Do skills update when my deps update?
 
 Yes. Run `skilld update` to regenerate outdated skills, or add `skilld update -b` to your prepare script and they regenerate in the background whenever you install packages.
-
-## Installation
-
-If you'd like to install skilld and track the lock file references, add it as a dev dependency:
-
-```bash
-npm install -D skilld
-# or
-yarn add -D skilld
-# or
-pnpm add -D skilld
-```
-
-### Automatic Updates
-
-Add to `package.json` to keep skills fresh on install:
-
-```json
-{
-  "scripts": {
-    "prepare": "skilld update -b"
-  }
-}
-```
 
 ## CLI Usage
 
