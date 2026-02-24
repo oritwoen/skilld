@@ -5,6 +5,7 @@
 import type { AgentType } from '../types.ts'
 import type { AgentTarget } from './types.ts'
 import { amp } from './amp.ts'
+import { antigravity } from './antigravity.ts'
 import { claudeCode } from './claude-code.ts'
 import { cline } from './cline.ts'
 import { codex } from './codex.ts'
@@ -28,4 +29,5 @@ export const targets: Record<AgentType, AgentTarget> = {
   'amp': amp,
   'opencode': opencode,
   'roo': roo,
+  'antigravity': antigravity,
 }

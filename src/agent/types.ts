@@ -14,6 +14,7 @@ export type AgentType
     | 'amp'
     | 'opencode'
     | 'roo'
+    | 'antigravity'
 
 export interface SkillMetadata {
   name: string
