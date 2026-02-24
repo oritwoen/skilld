@@ -61,9 +61,14 @@ async function countEmbeddings(packageName: string, version?: string): Promise<n
     return null
   try {
     const { DatabaseSync } = await import('node:sqlite')
-    using db = new DatabaseSync(dbPath, { open: true, readOnly: true })
-    const row = db.prepare('SELECT count(*) as cnt FROM vector_metadata').get() as { cnt: number } | undefined
-    return row?.cnt ?? null
+    const db = new DatabaseSync(dbPath, { open: true, readOnly: true })
+    try {
+      const row = db.prepare('SELECT count(*) as cnt FROM vector_metadata').get() as { cnt: number } | undefined
+      return row?.cnt ?? null
+    }
+    finally {
+      db.close()
+    }
   }
   catch {
     return null
