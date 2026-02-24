@@ -941,13 +941,12 @@ export async function selectModel(skipPrompt: boolean): Promise<OptimizeModel | 
     return null
   }
 
-  // Use config model if set and available
-  if (config.model && available.some(m => m.id === config.model)) {
-    return config.model
-  }
-
-  if (skipPrompt)
+  // Use config model if set and available (only when not prompting)
+  if (skipPrompt) {
+    if (config.model && available.some(m => m.id === config.model))
+      return config.model
     return available.find(m => m.recommended)?.id ?? available[0]!.id
+  }
 
   const modelChoice = await p.select({
     message: 'Model for SKILL.md generation',
