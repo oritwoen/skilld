@@ -43,6 +43,8 @@ Run skilld in a project to generate skills for your dependencies through a simpl
 npx -y skilld
 ```
 
+__Requires Node 22.6.0 or higher.__
+
 Or add a specific package directly:
 
 ```bash
