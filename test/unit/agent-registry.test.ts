@@ -15,6 +15,7 @@ describe('agent/registry', () => {
       'amp',
       'opencode',
       'roo',
+      'antigravity',
     ]
 
     expect(Object.keys(agents)).toEqual(expect.arrayContaining(expectedAgents))
