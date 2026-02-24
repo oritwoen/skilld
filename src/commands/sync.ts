@@ -419,7 +419,10 @@ async function syncSinglePackage(packageSpec: string, config: SyncConfig): Promi
     resParts.push('discussions')
   if (resources.hasReleases)
     resParts.push('releases')
-  resSpin.stop(`Fetched ${resParts.length > 0 ? resParts.join(', ') : 'resources'}`)
+  resSpin.stop(resources.usedCache
+    ? `Loaded ${resParts.length > 0 ? resParts.join(', ') : 'resources'} (cached)`
+    : `Fetched ${resParts.length > 0 ? resParts.join(', ') : 'resources'}`,
+  )
   for (const w of resources.warnings)
     p.log.warn(`\x1B[33m${w}\x1B[0m`)
 
@@ -499,7 +502,7 @@ async function syncSinglePackage(packageSpec: string, config: SyncConfig): Promi
   // Ask about LLM optimization (skip if -y flag, skipLlm config, or model already specified)
   const globalConfig = readConfig()
   if (!globalConfig.skipLlm && (!config.yes || config.model)) {
-    const llmConfig = await selectLlmConfig(config.model)
+    const llmConfig = await selectLlmConfig(config.model, undefined, resources.usedCache)
     if (llmConfig) {
       p.log.step(getModelLabel(llmConfig.model))
       await enhanceSkillWithLLM({

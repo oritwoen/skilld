@@ -118,6 +118,7 @@ interface BaseSkillData {
   packages?: Array<{ name: string }>
   warnings: string[]
   features?: FeaturesConfig
+  usedCache: boolean
 }
 
 export async function syncPackagesParallel(config: ParallelSyncConfig): Promise<void> {
@@ -222,8 +223,9 @@ export async function syncPackagesParallel(config: ParallelSyncConfig): Promise<
 
   // Phase 2: Ask about LLM enhancement (skip if -y without model, or skipLlm config)
   const globalConfig = readConfig()
+  const allCached = successfulPkgs.every(pkg => skillData.get(pkg)?.usedCache)
   if (successfulPkgs.length > 0 && !globalConfig.skipLlm && !(config.yes && !config.model)) {
-    const llmConfig = await selectLlmConfig(config.model)
+    const llmConfig = await selectLlmConfig(config.model, undefined, allCached)
 
     if (llmConfig) {
       p.log.step(getModelLabel(llmConfig.model))
@@ -442,6 +444,7 @@ async function syncBaseSkill(
     packages: allPackages.length > 1 ? allPackages : undefined,
     warnings: resources.warnings,
     features,
+    usedCache: resources.usedCache,
   }
 }
 

@@ -308,6 +308,8 @@ export interface FetchResult {
   warnings: string[]
   /** Parsed GitHub owner/repo for repo-level cache */
   repoInfo?: { owner: string, repo: string }
+  /** Whether this result was served from cache (no fresh fetches) */
+  usedCache: boolean
 }
 
 /** Fetch and cache all resources for a package (docs cascade + issues + discussions + releases) */
@@ -713,6 +715,7 @@ export async function fetchAndCacheResources(opts: {
     hasReleases: features.releases && existsSync(releasesPath),
     warnings,
     repoInfo,
+    usedCache: useCache,
   }
 }
 
@@ -1061,9 +1064,10 @@ export interface LlmConfig {
 /**
  * Resolve sections + model for LLM enhancement.
  * If presetModel is provided, uses DEFAULT_SECTIONS without prompting.
+ * If usedCache is true, auto-uses the configured default model without prompting.
  * Returns null if cancelled or no sections/model selected.
  */
-export async function selectLlmConfig(presetModel?: OptimizeModel, message?: string): Promise<LlmConfig | null> {
+export async function selectLlmConfig(presetModel?: OptimizeModel, message?: string, usedCache?: boolean): Promise<LlmConfig | null> {
   if (presetModel) {
     return { model: presetModel, sections: DEFAULT_SECTIONS }
   }
@@ -1077,6 +1081,11 @@ export async function selectLlmConfig(presetModel?: OptimizeModel, message?: str
   const defaultModel = await selectModel(true)
   if (!defaultModel)
     return null
+
+  // Cached data: skip model prompt, auto-use default model + default sections
+  if (usedCache) {
+    return { model: defaultModel, sections: DEFAULT_SECTIONS }
+  }
 
   const defaultModelName = getModelName(defaultModel)
 
