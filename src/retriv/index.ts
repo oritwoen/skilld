@@ -127,9 +127,10 @@ export async function searchPooled(
   options: SearchOptions = {},
 ): Promise<SearchSnippet[]> {
   const { limit = 10, filter } = options
+  const fetchLimit = limit * 2 // Over-fetch to compensate for dedup
   const allResults = await Promise.all(
     [...pool.values()].map(async (db) => {
-      const results = await db.search(query, { limit, filter, returnContent: true, returnMetadata: true, returnMeta: true })
+      const results = await db.search(query, { limit: fetchLimit, filter, returnContent: true, returnMetadata: true, returnMeta: true })
       return results.map(r => ({
         id: r.id,
         content: r.content ?? '',
@@ -142,7 +143,19 @@ export async function searchPooled(
       }))
     }),
   )
-  const merged = allResults.flat().sort((a, b) => b.score - a.score).slice(0, limit)
+  // Deduplicate by source+lineRange (overlapping chunks from same doc)
+  const seen = new Set<string>()
+  const merged = allResults.flat()
+    .sort((a, b) => b.score - a.score)
+    .filter((r) => {
+      const lr = r.lineRange
+      const key = `${r.metadata.source || r.id}:${lr?.[0]}-${lr?.[1]}`
+      if (seen.has(key))
+        return false
+      seen.add(key)
+      return true
+    })
+    .slice(0, limit)
   return toSnippets(merged)
 }
 
