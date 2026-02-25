@@ -7,7 +7,7 @@ import { detectCurrentAgent } from 'unagent/env'
 import { agents, detectTargetAgent } from '../agent/index.ts'
 import { getPackageDbPath, REFERENCES_DIR } from '../cache/index.ts'
 import { isInteractive } from '../cli-helpers.ts'
-import { formatSnippet, readLock, sanitizeMarkdown } from '../core/index.ts'
+import { formatSnippet, normalizeScores, readLock, sanitizeMarkdown } from '../core/index.ts'
 import { getSharedSkillsDir } from '../core/shared.ts'
 import { searchSnippets } from '../retriv/index.ts'
 
@@ -18,6 +18,19 @@ export function findPackageDbs(packageFilter?: string): string[] {
   if (!lock)
     return []
   return filterLockDbs(lock, packageFilter)
+}
+
+/** Build package name → version map from the project lockfile */
+export function getPackageVersions(cwd: string = process.cwd()): Map<string, string> {
+  const lock = readProjectLock(cwd)
+  const map = new Map<string, string>()
+  if (!lock)
+    return map
+  for (const s of Object.values(lock.skills)) {
+    if (s.packageName && s.version)
+      map.set(s.packageName, s.version)
+  }
+  return map
 }
 
 /** Read the project's skilld-lock.yaml (shared dir or agent skills dir) */
@@ -34,12 +47,17 @@ function readProjectLock(cwd: string): ReturnType<typeof readLock> {
   return readLock(`${cwd}/${agents[agent].skillsDir}`)
 }
 
-/** List installed package names from the project lockfile */
+/** List installed packages with versions from the project lockfile */
 export function listLockPackages(cwd: string = process.cwd()): string[] {
   const lock = readProjectLock(cwd)
   if (!lock)
     return []
-  return [...new Set(Object.values(lock.skills).map(s => s.packageName).filter(Boolean) as string[])]
+  const seen = new Map<string, string>()
+  for (const s of Object.values(lock.skills)) {
+    if (s.packageName && s.version)
+      seen.set(s.packageName, s.version)
+  }
+  return [...seen].map(([name, version]) => `${name}@${version}`)
 }
 
 function filterLockDbs(lock: ReturnType<typeof readLock>, packageFilter?: string): string[] {
@@ -122,6 +140,7 @@ export function parseFilterPrefix(rawQuery: string): { query: string, filter?: S
 
 export async function searchCommand(rawQuery: string, packageFilter?: string): Promise<void> {
   const dbs = findPackageDbs(packageFilter)
+  const versions = getPackageVersions()
 
   if (dbs.length === 0) {
     if (packageFilter) {
@@ -143,11 +162,21 @@ export async function searchCommand(rawQuery: string, packageFilter?: string): P
 
   // Query all package DBs in parallel with native filtering
   const allResults = await Promise.all(
-    dbs.map(dbPath => searchSnippets(query, { dbPath }, { limit: filter ? 10 : 5, filter })),
+    dbs.map(dbPath => searchSnippets(query, { dbPath }, { limit: filter ? 20 : 10, filter })),
   )
 
-  // Merge and sort by score
-  const merged = allResults.flat().sort((a, b) => b.score - a.score).slice(0, 5)
+  // Merge, deduplicate by source+lineRange, and sort by score
+  const seen = new Set<string>()
+  const merged = allResults.flat()
+    .sort((a, b) => b.score - a.score)
+    .filter((r) => {
+      const key = `${r.source}:${r.lineStart}-${r.lineEnd}`
+      if (seen.has(key))
+        return false
+      seen.add(key)
+      return true
+    })
+    .slice(0, 5)
 
   const elapsed = ((performance.now() - start) / 1000).toFixed(2)
 
@@ -156,7 +185,11 @@ export async function searchCommand(rawQuery: string, packageFilter?: string): P
     return
   }
 
-  const output = sanitizeMarkdown(merged.map(r => formatSnippet(r)).join('\n\n'))
+  // Sanitize content before formatting (ANSI codes in formatted output break sanitizer)
+  for (const r of merged)
+    r.content = sanitizeMarkdown(r.content)
+  const scores = normalizeScores(merged)
+  const output = merged.map(r => formatSnippet(r, versions, scores.get(r))).join('\n\n')
   const summary = `${merged.length} results (${elapsed}s)`
   const inAgent = !!detectCurrentAgent()
   if (inAgent) {

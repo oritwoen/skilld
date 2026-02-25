@@ -1,8 +1,8 @@
 import type { SearchFilter, SearchSnippet } from '../retriv/index.ts'
 import { createLogUpdate } from 'log-update'
-import { formatCompactSnippet, highlightTerms, sanitizeMarkdown } from '../core/index.ts'
+import { formatCompactSnippet, highlightTerms, normalizeScores, sanitizeMarkdown, scoreLabel } from '../core/index.ts'
 import { closePool, openPool, searchPooled } from '../retriv/index.ts'
-import { findPackageDbs, listLockPackages, parseFilterPrefix } from './search.ts'
+import { findPackageDbs, getPackageVersions, listLockPackages, parseFilterPrefix } from './search.ts'
 
 const FILTER_CYCLE = [undefined, 'docs', 'issues', 'releases'] as const
 type FilterLabel = typeof FILTER_CYCLE[number]
@@ -17,18 +17,11 @@ function filterToSearchFilter(label: FilterLabel): SearchFilter | undefined {
   return { type: { $in: ['doc', 'docs'] } }
 }
 
-function scoreColor(score: number): string {
-  if (score >= 0.7)
-    return '\x1B[32m' // green
-  if (score >= 0.4)
-    return '\x1B[33m' // yellow
-  return '\x1B[90m' // dim
-}
-
 const SPINNER_FRAMES = ['◐', '◓', '◑', '◒']
 
 export async function interactiveSearch(packageFilter?: string): Promise<void> {
   const dbs = findPackageDbs(packageFilter)
+  const versions = getPackageVersions()
   if (dbs.length === 0) {
     let msg: string
     if (packageFilter) {
@@ -112,21 +105,25 @@ export async function interactiveSearch(packageFilter?: string): Promise<void> {
     else {
       lines.push('')
       const shown = results.slice(0, maxResults)
+      const scores = normalizeScores(results)
       for (let i = 0; i < shown.length; i++) {
         const r = shown[i]!
         const selected = i === selectedIndex
         const bullet = selected ? '\x1B[36m●\x1B[0m' : '\x1B[90m○\x1B[0m'
-        const sc = scoreColor(r.score)
+        const sc = scoreLabel(scores.get(r) ?? 0)
         const { title, path, preview } = formatCompactSnippet(r, cols)
         const highlighted = highlightTerms(preview, r.highlights)
 
+        const ver = versions.get(r.package)
+        const pkgLabel = ver ? `${r.package}@${ver}` : r.package
+
         if (selected) {
-          lines.push(`  ${bullet} \x1B[1m${r.package}\x1B[0m ${sc}${r.score.toFixed(2)}\x1B[0m  \x1B[36m${title}\x1B[0m`)
+          lines.push(`  ${bullet} \x1B[1m${pkgLabel}\x1B[0m ${sc}  \x1B[36m${title}\x1B[0m`)
           lines.push(`    \x1B[90m${path}\x1B[0m`)
           lines.push(`    ${highlighted}`)
         }
         else {
-          lines.push(`  ${bullet} \x1B[90m${r.package}\x1B[0m ${sc}${r.score.toFixed(2)}\x1B[0m  \x1B[90m${title}\x1B[0m`)
+          lines.push(`  ${bullet} \x1B[90m${pkgLabel}\x1B[0m ${sc}  \x1B[90m${title}\x1B[0m`)
         }
       }
     }
@@ -233,9 +230,12 @@ export async function interactiveSearch(packageFilter?: string): Promise<void> {
       const refPath = `.claude/skills/${r.package}/.skilld/${r.source}`
       const lineRange = r.lineStart === r.lineEnd ? `L${r.lineStart}` : `L${r.lineStart}-${r.lineEnd}`
       const highlighted = highlightTerms(sanitizeMarkdown(r.content), r.highlights)
+      const rVer = versions.get(r.package)
+      const rLabel = rVer ? `${r.package}@${rVer}` : r.package
+      const rScores = normalizeScores(results)
       const out = [
         '',
-        `  \x1B[1m${r.package}\x1B[0m ${scoreColor(r.score)}${r.score.toFixed(2)}\x1B[0m`,
+        `  \x1B[1m${rLabel}\x1B[0m ${scoreLabel(rScores.get(r) ?? 0)}`,
         `  \x1B[90m${refPath}:${lineRange}\x1B[0m`,
         '',
         `  ${highlighted.replace(/\n/g, '\n  ')}`,

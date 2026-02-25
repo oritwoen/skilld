@@ -72,17 +72,34 @@ export function highlightTerms(content: string, terms: string[]): string {
   return content.replace(pattern, '\x1B[33m$1\x1B[0m')
 }
 
-export function formatSnippet(r: SearchSnippet): string {
+/** Format a normalized score (0-100) with color */
+export function scoreLabel(pct: number): string {
+  const color = pct >= 70 ? '\x1B[32m' : pct >= 40 ? '\x1B[33m' : '\x1B[90m'
+  return `${color}${pct}%\x1B[0m`
+}
+
+/** Normalize raw cosine similarity scores to 0-100 relative to the best match */
+export function normalizeScores(results: SearchSnippet[]): Map<SearchSnippet, number> {
+  const map = new Map<SearchSnippet, number>()
+  const max = results.reduce((m, r) => Math.max(m, r.score), 0)
+  for (const r of results)
+    map.set(r, max > 0 ? Math.round((r.score / max) * 100) : 0)
+  return map
+}
+
+export function formatSnippet(r: SearchSnippet, versions?: Map<string, string>, pct?: number): string {
   const refPath = `.claude/skills/${r.package}/.skilld/${r.source}`
   const lineRange = r.lineStart === r.lineEnd ? `L${r.lineStart}` : `L${r.lineStart}-${r.lineEnd}`
-  const score = `\x1B[90m${r.score.toFixed(2)}\x1B[0m`
+  const score = pct != null ? scoreLabel(pct) : `\x1B[90m${r.score.toFixed(2)}\x1B[0m`
+  const version = versions?.get(r.package)
+  const pkgLabel = version ? `${r.package}@${version}` : r.package
 
   const scopeStr = r.scope?.length ? `${r.scope.map(e => e.name).join('.')} → ` : ''
   const entityStr = r.entities?.map(e => e.signature || `${e.type} ${e.name}`).join(', ')
   const highlighted = highlightTerms(r.content, r.highlights)
 
   return [
-    `${r.package} ${score}${entityStr ? `  \x1B[36m${scopeStr}${entityStr}\x1B[0m` : ''}`,
+    `${pkgLabel} ${score}${entityStr ? `  \x1B[36m${scopeStr}${entityStr}\x1B[0m` : ''}`,
     `\x1B[90m${refPath}:${lineRange}\x1B[0m`,
     `  ${highlighted.replace(/\n/g, '\n  ')}`,
   ].join('\n')
