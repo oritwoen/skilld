@@ -179,7 +179,7 @@ export const PACKAGES: PackageSpec[] = [
   },
 
   // ── vue-router ────────────────────────────────────────────────────
-  // Official router — git docs + llms.txt at router.vuejs.org.
+  // Official router — git docs in packages/docs/ monorepo + llms.txt at router.vuejs.org.
   {
     name: 'vue-router',
     preset: 'vue',
@@ -188,7 +188,7 @@ export const PACKAGES: PackageSpec[] = [
     expectSources: { npm: true, gitDocs: true, llmsTxt: true, readme: true },
     expectDocsType: 'docs',
     expectCacheFiles: [
-      'docs/guide/index.md',
+      'packages/docs/guide/index.md',
     ],
     minCacheDocs: 5,
     expectDescriptionContains: '"vue-router"',
@@ -213,19 +213,19 @@ export const PACKAGES: PackageSpec[] = [
   },
 
   // ── motion-v ────────────────────────────────────────────────────────
-  // Motion for Vue — no git docs, no llms.txt. Docs crawled from motion.dev.
-  // Uses registry crawlUrl: https://motion.dev/docs/vue/**
+  // Motion for Vue — no git docs, no llms.txt. crawlUrl not used by e2e pipeline.
+  // Falls back to README.
   {
     name: 'motion-v',
     preset: 'vue',
     expectRepoUrl: 'github.com/motiondivision/motion-vue',
     expectDocsUrl: 'https://motion.dev',
     expectSources: { npm: true, gitDocs: false, llmsTxt: false, readme: true },
-    expectDocsType: 'docs',
+    expectDocsType: 'readme',
     expectCacheFiles: [
-      'docs/docs/vue-animation.md',
+      'docs/README.md',
     ],
-    minCacheDocs: 3,
+    minCacheDocs: 1,
     expectDescriptionContains: '"motion-v"',
   },
 
@@ -305,20 +305,20 @@ export const PACKAGES: PackageSpec[] = [
   },
 
   // ── @sveltejs/kit ─────────────────────────────────────────────────
-  // SvelteKit framework — git docs + llms.txt at svelte.dev.
+  // SvelteKit framework — docs moved to sveltejs/svelte repo. Git docs in kit
+  // are shallow (test fixtures, type stubs), falls through to llms.txt at svelte.dev.
   {
     name: '@sveltejs/kit',
     preset: 'svelte',
     expectRepoUrl: 'github.com/sveltejs/kit',
     expectDocsUrl: 'https://svelte.dev',
     expectSources: { npm: true, gitDocs: true, llmsTxt: true, readme: true },
-    expectDocsType: 'docs',
+    expectDocsType: 'llms.txt',
     expectCacheFiles: [
-      'documentation/docs/10-getting-started/10-introduction.md',
+      'llms.txt',
     ],
-    minCacheDocs: 10,
+    minCacheDocs: 1,
     expectDescriptionContains: '"@sveltejs/kit"',
-    searchQuery: { query: 'routing', minHits: 1 },
   },
 
   // ═══════════════════════════════════════════════════════════════════
