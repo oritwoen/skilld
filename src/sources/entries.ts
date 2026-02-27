@@ -3,8 +3,8 @@
  * Only types — source code is too verbose.
  */
 import { existsSync, readFileSync } from 'node:fs'
-import { globby } from 'globby'
 import { join } from 'pathe'
+import { glob } from 'tinyglobby'
 
 export interface EntryFile {
   path: string
@@ -54,10 +54,11 @@ export async function resolveEntryFiles(packageDir: string): Promise<EntryFile[]
     ...SKIP_PATTERNS,
   ]
 
-  const files = await globby(['**/*.d.{ts,mts,cts}'], {
+  const files = await glob(['**/*.d.{ts,mts,cts}'], {
     cwd: packageDir,
     ignore,
     absolute: false,
+    expandDirectories: false,
   })
 
   const entries: EntryFile[] = []

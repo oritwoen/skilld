@@ -1,11 +1,11 @@
 /**
  * Detect directly-used npm packages by scanning source files
- * Uses mlly for proper ES module parsing + globby for gitignore support
+ * Uses mlly for proper ES module parsing + tinyglobby for file discovery
  */
 
 import { readFile } from 'node:fs/promises'
-import { globby } from 'globby'
 import { findDynamicImports, findStaticImports } from 'mlly'
+import { glob } from 'tinyglobby'
 import { detectPresetPackages } from './detect-presets.ts'
 
 export interface PackageUsage {
@@ -44,11 +44,11 @@ export async function detectImportedPackages(cwd: string = process.cwd()): Promi
   try {
     const counts = new Map<string, number>()
 
-    const files = await globby(PATTERNS, {
+    const files = await glob(PATTERNS, {
       cwd,
       ignore: IGNORE,
-      gitignore: true,
       absolute: true,
+      expandDirectories: false,
     })
 
     await Promise.all(files.map(async (file) => {
