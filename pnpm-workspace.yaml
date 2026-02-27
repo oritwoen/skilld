@@ -27,24 +27,24 @@ catalogs:
     '@huggingface/transformers': ^3.8.1
     citty: ^0.2.1
     consola: ^3.4.2
-    globby: ^16.1.0
-    log-update: ^7.1.0
-    mdast-util-from-markdown: ^2.0.2
+    log-update: ^7.2.0
+    mdast-util-from-markdown: ^2.0.3
     mdast-util-frontmatter: ^2.0.1
     mdast-util-to-string: ^4.0.0
     micromark-extension-frontmatter: ^2.0.0
     mlly: ^1.8.0
-    oxc-parser: ^0.114.0
+    oxc-parser: ^0.115.0
     p-limit: ^7.3.0
     retriv: ^0.10.3
     sqlite-vec: ^0.1.7-alpha.10
+    tinyglobby: ^0.2.15
     typescript: 6.0.0-beta
-    unist-util-visit: ^5.0.0
+    unist-util-visit: ^5.1.0
   dev-build:
-    '@types/node': ^25.2.3
-    obuild: ^0.4.27
+    '@types/node': ^25.3.2
+    obuild: ^0.4.31
   dev-lint:
-    '@antfu/eslint-config': ^7.4.3
+    '@antfu/eslint-config': ^7.6.1
   dev-test:
     '@vitest/coverage-v8': ^4.0.18
     evalite: ^0.19.0

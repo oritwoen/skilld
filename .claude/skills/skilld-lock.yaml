@@ -30,3 +30,46 @@ skills:
     source: "ungh://microsoft/TypeScript"
     syncedAt: 2026-02-14
     generator: skilld
+  vue-skilld:
+    repo: harlan-zw/vue-ecosystem-skills
+    source: github
+    syncedAt: 2026-02-18
+    generator: external
+    path: skills/vue-skilld
+    ref: main
+  sqlite-vec-skilld:
+    packageName: sqlite-vec
+    version: 0.1.7-alpha.10
+    source: "file:///home/harlan/pkg/skilld/node_modules/sqlite-vec/README.md"
+    syncedAt: 2026-02-24
+    generator: skilld
+  motion-v-skilld:
+    packageName: motion-v
+    version: 2.0.0-beta.5
+    packages: "motion-v@2.0.0-beta.5"
+    repo: motiondivision/motion-vue
+    source: "https://motion.dev/docs/vue**"
+    syncedAt: 2026-02-24
+    generator: skilld
+  citty-skilld:
+    packageName: citty
+    version: 0.2.1
+    packages: "citty@0.2.1"
+    repo: unjs/citty
+    source: "ungh://unjs/citty"
+    syncedAt: 2026-02-25
+    generator: skilld
+  log-update-skilld:
+    packageName: log-update
+    version: 7.2.0
+    repo: sindresorhus/log-update
+    source: "https://raw.githubusercontent.com/sindresorhus/log-update/main/readme.md"
+    syncedAt: 2026-02-27
+    generator: skilld
+  tinyglobby-skilld:
+    packageName: tinyglobby
+    version: 0.2.15
+    repo: SuperchupuDev/tinyglobby
+    source: "ungh://SuperchupuDev/tinyglobby"
+    syncedAt: 2026-02-27
+    generator: skilld

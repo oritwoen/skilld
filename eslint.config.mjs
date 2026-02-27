@@ -12,6 +12,7 @@ export default antfu({
     'CLAUDE.md',
     'docs/**',
     '.claude/skills/**',
+    'test/fixtures/**',
   ],
 }, {
   files: ['**/*.md/**'],
