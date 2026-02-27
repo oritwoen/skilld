@@ -537,6 +537,7 @@ export async function fetchAndCacheResources(opts: {
   }
   else {
     // Detect docs type from cache
+    onProgress('Loading cached docs')
     const detected = detectDocsType(packageName, version, resolved.repoUrl, resolved.llmsUrl)
     docsType = detected.docsType
     if (detected.docSource)
@@ -545,6 +546,7 @@ export async function fetchAndCacheResources(opts: {
     // Load cached docs for indexing if db doesn't exist yet
     const dbPath = getPackageDbPath(packageName, version)
     if (!existsSync(dbPath)) {
+      onProgress('Reading cached docs for indexing')
       const cached = readCachedDocs(packageName, version)
       for (const doc of cached) {
         docsToIndex.push({
@@ -557,6 +559,7 @@ export async function fetchAndCacheResources(opts: {
 
     // Backfill docs index for caches created before this feature
     if (docsType !== 'readme' && !existsSync(join(getCacheDir(packageName, version), 'docs', '_INDEX.md'))) {
+      onProgress('Generating docs index')
       const cached = readCachedDocs(packageName, version)
       const docFiles = cached.filter(d => d.path.startsWith('docs/') && d.path.endsWith('.md'))
       if (docFiles.length > 1) {
@@ -1064,10 +1067,9 @@ export interface LlmConfig {
 /**
  * Resolve sections + model for LLM enhancement.
  * If presetModel is provided, uses DEFAULT_SECTIONS without prompting.
- * If usedCache is true, auto-uses the configured default model without prompting.
  * Returns null if cancelled or no sections/model selected.
  */
-export async function selectLlmConfig(presetModel?: OptimizeModel, message?: string, usedCache?: boolean): Promise<LlmConfig | null> {
+export async function selectLlmConfig(presetModel?: OptimizeModel, message?: string): Promise<LlmConfig | null> {
   if (presetModel) {
     return { model: presetModel, sections: DEFAULT_SECTIONS }
   }
@@ -1081,11 +1083,6 @@ export async function selectLlmConfig(presetModel?: OptimizeModel, message?: str
   const defaultModel = await selectModel(true)
   if (!defaultModel)
     return null
-
-  // Cached data: skip model prompt, auto-use default model + default sections
-  if (usedCache) {
-    return { model: defaultModel, sections: DEFAULT_SECTIONS }
-  }
 
   const defaultModelName = getModelName(defaultModel)
 
