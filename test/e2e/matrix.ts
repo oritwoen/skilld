@@ -179,7 +179,7 @@ export const PACKAGES: PackageSpec[] = [
   },
 
   // ── vue-router ────────────────────────────────────────────────────
-  // Official router — git docs in packages/docs/ monorepo + llms.txt at router.vuejs.org.
+  // Official router — git docs in packages/docs/ monorepo (prefix stripped to docs/).
   {
     name: 'vue-router',
     preset: 'vue',
@@ -188,7 +188,7 @@ export const PACKAGES: PackageSpec[] = [
     expectSources: { npm: true, gitDocs: true, llmsTxt: true, readme: true },
     expectDocsType: 'docs',
     expectCacheFiles: [
-      'packages/docs/guide/index.md',
+      'docs/guide/index.md',
     ],
     minCacheDocs: 5,
     expectDescriptionContains: '"vue-router"',
@@ -196,7 +196,7 @@ export const PACKAGES: PackageSpec[] = [
   },
 
   // ── @vueuse/core ──────────────────────────────────────────────────
-  // Composition utilities — 300+ composable docs via override (packages/**/*.md).
+  // Composition utilities — 300+ composable docs via monorepo (prefix stripped to docs/).
   {
     name: '@vueuse/core',
     preset: 'vue',
@@ -205,7 +205,7 @@ export const PACKAGES: PackageSpec[] = [
     expectSources: { npm: true, gitDocs: true, llmsTxt: false, readme: true },
     expectDocsType: 'docs',
     expectCacheFiles: [
-      'packages/core/useActiveElement/index.md',
+      'docs/useActiveElement/index.md',
     ],
     minCacheDocs: 100,
     expectDescriptionContains: '"@vueuse/core"',

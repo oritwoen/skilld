@@ -156,8 +156,11 @@ export async function runPipeline(name: string): Promise<PipelineResult> {
             )
             for (const r of results) {
               if (r) {
-                cachedDocs.push({ path: r.file, content: r.content })
-                docsToIndex.push({ id: r.file, content: r.content, metadata: { package: name, source: r.file } })
+                // Normalize paths same as sync-shared.ts: strip docsPrefix, ensure docs/ prefix
+                const stripped = gitDocs.docsPrefix ? r.file.replace(gitDocs.docsPrefix, '') : r.file
+                const cachePath = stripped.startsWith('docs/') ? stripped : `docs/${stripped}`
+                cachedDocs.push({ path: cachePath, content: r.content })
+                docsToIndex.push({ id: cachePath, content: r.content, metadata: { package: name, source: cachePath } })
               }
             }
           }
