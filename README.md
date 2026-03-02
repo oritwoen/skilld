@@ -8,12 +8,14 @@
 
 ## Why?
 
-Agents have [knowledge cutoffs](https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison) and predict the most likely code from training data, not the best code. For example, [Vue v3.5](https://blog.vuejs.org/posts/vue-3-5) was released over 16 months ago and agents refuse to use its features out-of-the-box. This is because they're trained on conventions not the latest docs.
+When using new packages or migrating to new versions, agents often struggle to use the appropriate best practices. This is because
+agents have [knowledge cutoffs](https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison) and
+predict based on existing patterns. 
 
-Methods of getting the right context to your agent require either manual curation, author opt-in, or external servers. See [the landscape](#the-landscape)
+Methods of getting the right context to your agent require either manual curation, author opt-in, external servers or vendor lock-in. See [the landscape](#the-landscape)
 for more details.
 
-Skilld generates [agent skills](https://agentskills.io/home) from the docs maintainers already write. Version-aware, local-first, and optimized for your codebase.
+Skilld generates [agent skills](https://agentskills.io/home) from the references maintainers already create: docs, release notes and GitHub issues. With these we can create version-aware, local-first, and optimized skills.
 
 <p align="center">
 <table>
