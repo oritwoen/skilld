@@ -300,6 +300,37 @@ describe('cleanSectionOutput', () => {
     })
   })
 
+  // ── H1 → H2 normalization ───────────────────────────────────────
+
+  describe('h1 to h2 normalization', () => {
+    it('converts # heading to ## heading', () => {
+      const input = '# API Changes\n\n- NEW: `foo()` — new in v2'
+      const result = cleanSectionOutput(input)
+      expect(result).toBe('## API Changes\n\n- NEW: `foo()` — new in v2')
+    })
+
+    it('converts multiple h1 headings', () => {
+      const input = '# API Changes\n\n- NEW: `foo()`\n\n# Best Practices\n\n- Use bar()'
+      const result = cleanSectionOutput(input)
+      expect(result).toContain('## API Changes')
+      expect(result).toContain('## Best Practices')
+      expect(result).not.toMatch(/^# /m)
+    })
+
+    it('does not affect ## or ### headings', () => {
+      const input = '## API Changes\n\n### Details\n\n- NEW: `foo()`'
+      const result = cleanSectionOutput(input)
+      expect(result).toContain('## API Changes')
+      expect(result).toContain('### Details')
+    })
+
+    it('does not affect # inside code blocks', () => {
+      const input = '## Best Practices\n\n```bash\n# this is a comment\necho hello\n```'
+      const result = cleanSectionOutput(input)
+      expect(result).toContain('# this is a comment')
+    })
+  })
+
   // ── Frontmatter stripping ─────────────────────────────────────────
 
   describe('frontmatter stripping', () => {
