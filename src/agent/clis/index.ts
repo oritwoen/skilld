@@ -664,6 +664,9 @@ export function cleanSectionOutput(content: string): string {
     }
   }
 
+  // Normalize h1 headers to h2 — LLMs sometimes use # instead of ##
+  cleaned = cleaned.replace(/^# (?!#)/gm, '## ')
+
   // Strip accidental frontmatter or leading horizontal rules
   const fmMatch = cleaned.match(/^-{3,}\n/)
   if (fmMatch) {
