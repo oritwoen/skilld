@@ -339,7 +339,7 @@ async function syncSinglePackage(packageSpec: string, config: SyncConfig): Promi
 
   // ── Merge mode: skill dir already exists with a different primary package (skip in eject) ──
   const existingLock = config.eject ? undefined : readLock(baseDir)?.skills[skillDirName]
-  const isMerge = existingLock && existingLock.packageName !== packageName
+  const isMerge = existingLock && existingLock.packageName && existingLock.packageName !== packageName
 
   if (isMerge) {
     spin.stop(`Merging ${packageName} into ${skillDirName}`)

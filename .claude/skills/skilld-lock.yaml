@@ -31,12 +31,13 @@ skills:
     syncedAt: 2026-02-14
     generator: skilld
   vue-skilld:
-    repo: harlan-zw/vue-ecosystem-skills
-    source: github
-    syncedAt: 2026-02-18
-    generator: external
-    path: skills/vue-skilld
-    ref: main
+    packageName: vue
+    version: 3.5.29
+    packages: "vue@3.5.29"
+    repo: vuejs/core
+    source: "https://vuejs.org/llms.txt"
+    syncedAt: 2026-03-02
+    generator: skilld
   sqlite-vec-skilld:
     packageName: sqlite-vec
     version: 0.1.7-alpha.10
