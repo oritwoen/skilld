@@ -33,7 +33,7 @@ catalogs:
     mdast-util-to-string: ^4.0.0
     micromark-extension-frontmatter: ^2.0.0
     mlly: ^1.8.0
-    oxc-parser: ^0.115.0
+    oxc-parser: ^0.116.0
     p-limit: ^7.3.0
     retriv: ^0.10.3
     sqlite-vec: ^0.1.7-alpha.10
@@ -41,7 +41,7 @@ catalogs:
     typescript: 6.0.0-beta
     unist-util-visit: ^5.1.0
   dev-build:
-    '@types/node': ^25.3.2
+    '@types/node': ^25.3.3
     obuild: ^0.4.31
   dev-lint:
     '@antfu/eslint-config': ^7.6.1
