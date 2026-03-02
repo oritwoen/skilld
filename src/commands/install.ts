@@ -41,7 +41,7 @@ import { timedSpinner } from '../core/formatting.ts'
 import { mergeLocks, parsePackages, readLock, syncLockfilesToDirs, writeLock } from '../core/lockfile.ts'
 import { sanitizeMarkdown } from '../core/sanitize.ts'
 import { getSharedSkillsDir } from '../core/shared.ts'
-import { createIndex } from '../retriv/index.ts'
+import { createIndex, SearchDepsUnavailableError } from '../retriv/index.ts'
 import { shutdownWorker } from '../retriv/pool.ts'
 import { fetchGitSkills } from '../sources/git-skills.ts'
 import {
@@ -374,19 +374,25 @@ export async function installCommand(opts: InstallOptions): Promise<void> {
       }
 
       if (features.search) {
-        if (docsToIndex.length > 0) {
-          await createIndex(docsToIndex, { dbPath: getPackageDbPath(pkgName, version) })
-        }
+        try {
+          if (docsToIndex.length > 0) {
+            await createIndex(docsToIndex, { dbPath: getPackageDbPath(pkgName, version) })
+          }
 
-        // Index package entry files (.d.ts / .js)
-        const pkgDir = resolvePkgDir(pkgName, cwd, version)
-        const entryFiles = pkgDir ? await resolveEntryFiles(pkgDir) : []
-        if (entryFiles.length > 0) {
-          await createIndex(entryFiles.map(e => ({
-            id: e.path,
-            content: e.content,
-            metadata: { package: pkgName, source: `pkg/${e.path}`, type: e.type },
-          })), { dbPath: getPackageDbPath(pkgName, version) })
+          // Index package entry files (.d.ts / .js)
+          const pkgDir = resolvePkgDir(pkgName, cwd, version)
+          const entryFiles = pkgDir ? await resolveEntryFiles(pkgDir) : []
+          if (entryFiles.length > 0) {
+            await createIndex(entryFiles.map(e => ({
+              id: e.path,
+              content: e.content,
+              metadata: { package: pkgName, source: `pkg/${e.path}`, type: e.type },
+            })), { dbPath: getPackageDbPath(pkgName, version) })
+          }
+        }
+        catch (err) {
+          if (!(err instanceof SearchDepsUnavailableError))
+            throw err
         }
       }
 

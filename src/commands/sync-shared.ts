@@ -39,7 +39,7 @@ import { parsePackages, readLock, writeLock } from '../core/lockfile.ts'
 import { parseFrontmatter } from '../core/markdown.ts'
 import { sanitizeMarkdown } from '../core/sanitize.ts'
 import { getSharedSkillsDir } from '../core/shared.ts'
-import { createIndex } from '../retriv/index.ts'
+import { createIndex, SearchDepsUnavailableError } from '../retriv/index.ts'
 import {
   $fetch,
   downloadLlmsDocs,
@@ -762,19 +762,27 @@ export async function indexResources(opts: {
     return
 
   onProgress(`Building search index (${allDocs.length} docs)`)
-  await createIndex(allDocs, {
-    dbPath,
-    onProgress: ({ phase, current, total }) => {
-      if (phase === 'storing') {
-        const d = allDocs[current - 1]
-        const type = d?.metadata?.type === 'source' || d?.metadata?.type === 'types' ? 'code' : (d?.metadata?.type || 'doc')
-        onProgress(`Storing ${type} (${current}/${total})`)
-      }
-      else if (phase === 'embedding') {
-        onProgress(`Creating embeddings (${current}/${total})`)
-      }
-    },
-  })
+  try {
+    await createIndex(allDocs, {
+      dbPath,
+      onProgress: ({ phase, current, total }) => {
+        if (phase === 'storing') {
+          const d = allDocs[current - 1]
+          const type = d?.metadata?.type === 'source' || d?.metadata?.type === 'types' ? 'code' : (d?.metadata?.type || 'doc')
+          onProgress(`Storing ${type} (${current}/${total})`)
+        }
+        else if (phase === 'embedding') {
+          onProgress(`Creating embeddings (${current}/${total})`)
+        }
+      },
+    })
+  }
+  catch (err) {
+    if (err instanceof SearchDepsUnavailableError)
+      onProgress('Search indexing skipped (native deps unavailable)')
+    else
+      throw err
+  }
 }
 
 /**

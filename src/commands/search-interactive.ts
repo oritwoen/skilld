@@ -1,7 +1,7 @@
 import type { SearchFilter, SearchSnippet } from '../retriv/index.ts'
 import { createLogUpdate } from 'log-update'
 import { formatCompactSnippet, highlightTerms, normalizeScores, sanitizeMarkdown, scoreLabel } from '../core/index.ts'
-import { closePool, openPool, searchPooled } from '../retriv/index.ts'
+import { closePool, openPool, SearchDepsUnavailableError, searchPooled } from '../retriv/index.ts'
 import { findPackageDbs, getPackageVersions, listLockPackages, parseFilterPrefix } from './search.ts'
 
 const FILTER_CYCLE = [undefined, 'docs', 'issues', 'releases'] as const
@@ -38,7 +38,17 @@ export async function interactiveSearch(packageFilter?: string): Promise<void> {
   }
 
   const logUpdate = createLogUpdate(process.stderr, { showCursor: true })
-  const pool = await openPool(dbs)
+  let pool: Awaited<ReturnType<typeof openPool>>
+  try {
+    pool = await openPool(dbs)
+  }
+  catch (err) {
+    if (err instanceof SearchDepsUnavailableError) {
+      process.stderr.write('\x1B[31mSearch requires native dependencies (sqlite-vec) that are not installed.\nInstall skilld globally or in a project to use search: npm i -g skilld\x1B[0m\n')
+      return
+    }
+    throw err
+  }
 
   // State
   let query = ''

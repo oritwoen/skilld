@@ -5,26 +5,45 @@ export type { ChunkEntity, Document, IndexConfig, IndexPhase, IndexProgress, Sea
 
 type RetrivInstance = Awaited<ReturnType<typeof getDb>>
 
+export class SearchDepsUnavailableError extends Error {
+  constructor(cause: unknown) {
+    super('Search dependencies unavailable (sqlite-vec or retriv not installed). Search indexing skipped.')
+    this.name = 'SearchDepsUnavailableError'
+    this.cause = cause
+  }
+}
+
 // Dynamic imports: retriv/chunkers/auto eagerly loads typescript which may not be installed (e.g. npx)
-async function getDb(config: Pick<IndexConfig, 'dbPath'>) {
-  const [
-    { createRetriv },
-    { autoChunker },
-    sqliteMod,
-    { transformersJs },
-    { cachedEmbeddings },
-  ] = await Promise.all([
-    import('retriv'),
-    import('retriv/chunkers/auto'),
-    import('retriv/db/sqlite'),
-    import('retriv/embeddings/transformers-js'),
-    import('./embedding-cache.ts'),
-  ])
+export async function getDb(config: Pick<IndexConfig, 'dbPath'>) {
+  let createRetriv, autoChunker, sqliteMod, sqliteVec, transformersJs, cachedEmbeddings
+  try {
+    ;([
+      { createRetriv },
+      { autoChunker },
+      sqliteMod,
+      sqliteVec,
+      { transformersJs },
+      { cachedEmbeddings },
+    ] = await Promise.all([
+      import('retriv'),
+      import('retriv/chunkers/auto'),
+      import('retriv/db/sqlite'),
+      import('sqlite-vec'),
+      import('retriv/embeddings/transformers-js'),
+      import('./embedding-cache.ts'),
+    ]))
+  }
+  catch (err: any) {
+    if (err?.code === 'ERR_MODULE_NOT_FOUND')
+      throw new SearchDepsUnavailableError(err)
+    throw err
+  }
   const embeddings = await cachedEmbeddings(transformersJs())
   return createRetriv({
     driver: sqliteMod.default({
       path: config.dbPath,
       embeddings,
+      sqliteVec,
     }),
     chunking: autoChunker(),
   })

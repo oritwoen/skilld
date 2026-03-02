@@ -9,7 +9,7 @@ import { getPackageDbPath, REFERENCES_DIR } from '../cache/index.ts'
 import { isInteractive } from '../cli-helpers.ts'
 import { formatSnippet, normalizeScores, readLock, sanitizeMarkdown } from '../core/index.ts'
 import { getSharedSkillsDir } from '../core/shared.ts'
-import { searchSnippets } from '../retriv/index.ts'
+import { SearchDepsUnavailableError, searchSnippets } from '../retriv/index.ts'
 
 /** Collect search.db paths for packages installed in the current project (from skilld-lock.yaml) */
 export function findPackageDbs(packageFilter?: string): string[] {
@@ -160,10 +160,20 @@ export async function searchCommand(rawQuery: string, packageFilter?: string): P
 
   const start = performance.now()
 
-  // Query all package DBs in parallel with native filtering
-  const allResults = await Promise.all(
-    dbs.map(dbPath => searchSnippets(query, { dbPath }, { limit: filter ? 20 : 10, filter })),
-  )
+  let allResults: Awaited<ReturnType<typeof searchSnippets>>[]
+  try {
+    // Query all package DBs in parallel with native filtering
+    allResults = await Promise.all(
+      dbs.map(dbPath => searchSnippets(query, { dbPath }, { limit: filter ? 20 : 10, filter })),
+    )
+  }
+  catch (err) {
+    if (err instanceof SearchDepsUnavailableError) {
+      p.log.error('Search requires native dependencies (sqlite-vec) that are not installed.\nInstall skilld globally or in a project to use search: npm i -g skilld')
+      return
+    }
+    throw err
+  }
 
   // Merge, deduplicate by source+lineRange, and sort by score
   const seen = new Set<string>()

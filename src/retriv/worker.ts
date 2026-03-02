@@ -1,10 +1,5 @@
 import type { IndexConfig, Document as RetrivDocument } from './types.ts'
 import { parentPort } from 'node:worker_threads'
-import { createRetriv } from 'retriv'
-import { autoChunker } from 'retriv/chunkers/auto'
-import sqlite from 'retriv/db/sqlite'
-import { transformersJs } from 'retriv/embeddings/transformers-js'
-import { cachedEmbeddings } from './embedding-cache.ts'
 
 export interface WorkerIndexMessage {
   type: 'index'
@@ -57,15 +52,8 @@ if (parentPort) {
           },
         }
 
-        const embeddings = await cachedEmbeddings(transformersJs())
-        const db = await createRetriv({
-          driver: sqlite({
-            path: config.dbPath,
-            embeddings,
-          }),
-          chunking: autoChunker(),
-        })
-
+        const { getDb } = await import('./index.ts')
+        const db = await getDb(config)
         await db.index(documents, { onProgress: config.onProgress })
         await db.close?.()
 

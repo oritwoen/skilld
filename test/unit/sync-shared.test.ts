@@ -87,9 +87,10 @@ vi.mock('../../src/core/lockfile', () => ({
   writeLock: vi.fn(),
 }))
 
-vi.mock('../../src/retriv', () => ({
-  createIndex: vi.fn(),
-}))
+vi.mock('../../src/retriv', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('../../src/retriv')>()
+  return { ...orig, createIndex: vi.fn() }
+})
 
 vi.mock('../../src/agent', () => ({
   agents: {
@@ -744,6 +745,27 @@ describe('sync-shared', () => {
 
       expect(resolveEntryFiles).not.toHaveBeenCalled()
       expect(createIndex).not.toHaveBeenCalled()
+    })
+
+    // 6f: gracefully skips when search deps unavailable
+    it('skips indexing when SearchDepsUnavailableError is thrown', async () => {
+      const { SearchDepsUnavailableError } = await import('../../src/retriv')
+      vi.mocked(existsSync).mockReturnValue(false)
+      vi.mocked(resolvePkgDir).mockReturnValue(null)
+      vi.mocked(createIndex).mockRejectedValueOnce(new SearchDepsUnavailableError(new Error('mock')))
+      const onProgress = vi.fn()
+      const docs = [{ id: 'a.md', content: 'content', metadata: { type: 'doc' } }]
+      await indexResources({ ...baseOpts, docsToIndex: docs, onProgress })
+      expect(onProgress).toHaveBeenCalledWith(expect.stringContaining('skipped'))
+    })
+
+    // 6g: re-throws non-SearchDepsUnavailableError errors
+    it('re-throws other createIndex errors', async () => {
+      vi.mocked(existsSync).mockReturnValue(false)
+      vi.mocked(resolvePkgDir).mockReturnValue(null)
+      vi.mocked(createIndex).mockRejectedValueOnce(new Error('disk full'))
+      const docs = [{ id: 'a.md', content: 'content', metadata: { type: 'doc' } }]
+      await expect(indexResources({ ...baseOpts, docsToIndex: docs })).rejects.toThrow('disk full')
     })
   })
 
