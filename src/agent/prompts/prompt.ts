@@ -238,7 +238,7 @@ ${rules.join('\n')}
 
 ## Output
 
-Write your final output to the file \`${skillDir}/.skilld/${outputFile}\` using the Write tool. Do NOT write to any other file path.
+Write your final output to the file \`${skillDir}/.skilld/${outputFile}\` using the Write tool. If Write is denied, output the content as plain text instead — do NOT retry or try alternative paths.
 
 After writing, run \`${cmd} validate ${skillDir}/.skilld/${outputFile}\` and fix any warnings before finishing. If unavailable, use \`${fallbackCmd} validate ${skillDir}/.skilld/${outputFile}\`.
 `

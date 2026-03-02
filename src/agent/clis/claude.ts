@@ -1,10 +1,13 @@
 /**
  * Claude Code CLI — token-level streaming via --include-partial-messages
+ *
+ * Write permission: Claude Code has hardcoded .claude/ write protection and
+ * --allowedTools glob patterns are broken (github.com/anthropics/claude-code/issues/6881).
+ * Instead of fighting the permission system, we let Write be auto-denied in pipe mode
+ * and capture the content via writeContent fallback in parseLine().
  */
 
 import type { CliModelEntry, ParsedEvent } from './types.ts'
-import { tmpdir } from 'node:os'
-import { join } from 'pathe'
 
 export const cli = 'claude' as const
 export const agentId = 'claude-code' as const
@@ -16,17 +19,15 @@ export const models: Record<string, CliModelEntry> = {
 }
 
 export function buildArgs(model: string, skillDir: string, symlinkDirs: string[]): string[] {
-  const skilldDir = join(skillDir, '.skilld')
-  const readDirs = [skillDir, ...symlinkDirs]
-  // Claude Code has hardcoded .claude/ write protection — use tmpdir for output
-  const tmpOut = join(tmpdir(), 'skilld-out')
   const allowedTools = [
-    ...readDirs.flatMap(d => [`Read(//${d}/**)`, `Glob(//${d}/**)`, `Grep(//${d}/**)`]),
-    // Edit rules apply to both Edit and Write tools; // prefix = absolute path
-    `Edit(//${skilldDir}/**)`,
-    `Edit(//${tmpOut}/**)`,
-    `Bash(*skilld search*)`,
-    `Bash(*skilld validate*)`,
+    // Bare tool names — --add-dir already scopes visibility
+    'Read',
+    'Glob',
+    'Grep',
+    'Bash(*skilld search*)',
+    'Bash(*skilld validate*)',
+    // Write intentionally omitted — auto-denied in pipe mode, content
+    // captured via writeContent fallback (see parseLine + index.ts:373)
   ].join(' ')
   return [
     '-p',
@@ -36,8 +37,6 @@ export function buildArgs(model: string, skillDir: string, symlinkDirs: string[]
     'stream-json',
     '--verbose',
     '--include-partial-messages',
-    '--permission-mode',
-    'acceptEdits',
     '--allowedTools',
     allowedTools,
     '--disallowedTools',
@@ -90,7 +89,7 @@ export function parseLine(line: string): ParsedEvent {
           const input = t.input || {}
           return input.file_path || input.path || input.pattern || input.query || input.command || ''
         }).filter(Boolean).join(', ')
-        // Capture Write content as fallback if permission is denied
+        // Capture Write content — primary output path since Write is auto-denied
         const writeTool = tools.find((t: any) => t.name === 'Write' && t.input?.content)
         return { toolName: names.join(', '), toolHint: hint || undefined, writeContent: writeTool?.input?.content }
       }
