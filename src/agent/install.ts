@@ -89,12 +89,13 @@ export function installSkillForAgents(
 }
 
 /**
- * Create relative symlinks from each detected agent's skills dir to the shared .skills/ dir.
- * Only targets agents whose config dir already exists in the project.
+ * Create a relative symlink from the target agent's skills dir to the shared .skills/ dir.
  * Replaces existing symlinks, skips real directories (user's custom skills).
  */
-export function linkSkillToAgents(skillName: string, sharedDir: string, cwd: string): void {
-  for (const [, agent] of Object.entries(agents)) {
+export function linkSkillToAgents(skillName: string, sharedDir: string, cwd: string, agentType?: AgentType): void {
+  const targetAgents = agentType ? [[agentType, agents[agentType]] as const] : Object.entries(agents)
+
+  for (const [, agent] of targetAgents) {
     const agentSkillsDir = join(cwd, agent.skillsDir)
 
     // Only link if the agent's parent config dir exists (e.g. .claude/, .cursor/)
@@ -133,8 +134,10 @@ export function linkSkillToAgents(skillName: string, sharedDir: string, cwd: str
 /**
  * Remove per-agent symlinks for a skill when removing from shared dir.
  */
-export function unlinkSkillFromAgents(skillName: string, cwd: string): void {
-  for (const [, agent] of Object.entries(agents)) {
+export function unlinkSkillFromAgents(skillName: string, cwd: string, agentType?: AgentType): void {
+  const targetAgents = agentType ? [[agentType, agents[agentType]] as const] : Object.entries(agents)
+
+  for (const [, agent] of targetAgents) {
     const target = join(cwd, agent.skillsDir, skillName)
     try {
       if (lstatSync(target).isSymbolicLink())
