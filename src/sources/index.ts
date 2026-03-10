@@ -9,6 +9,12 @@ export { fetchCrawledDocs, toCrawlPattern } from './crawl.ts'
 
 export { resolveCrateDocsWithAttempts } from './crates.ts'
 
+export {
+  isRegistrySpec,
+  parseEcosystemSpec,
+  resolveRegistryDocsWithAttempts,
+} from './registry.ts'
+
 // Discussions
 export type { GitHubDiscussion } from './discussions.ts'
 

@@ -35,9 +35,12 @@ import { shutdownWorker } from '../retriv/pool.ts'
 import { parseGitSkillInput } from '../sources/git-skills.ts'
 import {
   fetchPkgDist,
+  isRegistrySpec,
+  parseEcosystemSpec,
   parsePackageSpec,
   readLocalDependencies,
   resolveCrateDocsWithAttempts,
+  resolveRegistryDocsWithAttempts,
   resolvePackageDocsWithAttempts,
   searchNpmPackages,
 } from '../sources/index.ts'
@@ -100,6 +103,10 @@ export function isCrateSpec(spec: string): boolean {
   return spec.startsWith('crate:')
 }
 
+function isNonCrateRegistrySpec(spec: string): boolean {
+  return isRegistrySpec(spec) && !isCrateSpec(spec)
+}
+
 function toStoragePackageName(packageName: string, isCrate: boolean): string {
   return isCrate ? `@skilld-crate/${packageName}` : packageName
 }
@@ -119,6 +126,10 @@ function toUpdatePackageSpec(skill: SkillEntry): string {
   if (packageName.startsWith('crate:'))
     return packageName
 
+  const ecosystemMatch = packageName.match(/^@skilld-(\w+)\/(.+)$/)
+  if (ecosystemMatch)
+    return `${ecosystemMatch[1]}:${ecosystemMatch[2]}`
+
   if (skill.name.includes('skilld-crate-') || skill.info?.source?.includes('docs.rs/'))
     return `crate:${packageName}`
 
@@ -129,7 +140,8 @@ export async function syncCommand(state: ProjectState, opts: SyncOptions): Promi
   // If packages specified, sync those
   if (opts.packages && opts.packages.length > 0) {
     const crateSpecs = opts.packages.filter(isCrateSpec)
-    const npmSpecs = opts.packages.filter(pkg => !isCrateSpec(pkg))
+    const registrySpecs = opts.packages.filter(isNonCrateRegistrySpec)
+    const npmSpecs = opts.packages.filter(pkg => !isCrateSpec(pkg) && !isNonCrateRegistrySpec(pkg))
 
     if (npmSpecs.length > 1) {
       await syncPackagesParallel({
@@ -148,6 +160,9 @@ export async function syncCommand(state: ProjectState, opts: SyncOptions): Promi
     }
 
     for (const spec of crateSpecs)
+      await syncSinglePackage(spec, opts)
+
+    for (const spec of registrySpecs)
       await syncSinglePackage(spec, opts)
 
     return
@@ -275,30 +290,54 @@ interface SyncConfig {
 
 async function syncSinglePackage(packageSpec: string, config: SyncConfig): Promise<void> {
   const isCrate = isCrateSpec(packageSpec)
-  const normalizedSpec = isCrate ? packageSpec.slice('crate:'.length).trim() : packageSpec
+  const registrySpec = isNonCrateRegistrySpec(packageSpec) ? parseEcosystemSpec(packageSpec) : null
+  const registryEcosystem = registrySpec?.ecosystem
+  const normalizedSpec = isCrate
+    ? packageSpec.slice('crate:'.length).trim()
+    : registrySpec
+      ? registrySpec.name.trim()
+      : packageSpec
   if (!normalizedSpec) {
-    p.log.error('Invalid crate spec. Use format: crate:<name>')
+    if (isCrate)
+      p.log.error('Invalid crate spec. Use format: crate:<name>')
+    else if (registrySpec)
+      p.log.error(`Invalid ${registrySpec.ecosystem} spec. Use format: ${registrySpec.ecosystem}:<name>`)
+    else
+      p.log.error('Invalid package spec.')
     return
   }
 
   // Parse dist-tag from spec: "vue@beta" → name="vue", tag="beta"
   const { name: parsedName, tag: requestedTag } = parsePackageSpec(normalizedSpec)
-  const packageName = isCrate ? parsedName.toLowerCase() : parsedName
-  const identityPackageName = toIdentityPackageName(packageName, isCrate)
-  const storagePackageName = toStoragePackageName(packageName, isCrate)
+  const packageName = isCrate || registryEcosystem ? parsedName.toLowerCase() : parsedName
+  const identityPackageName = isCrate
+    ? toIdentityPackageName(packageName, true)
+    : registryEcosystem
+      ? `${registryEcosystem}:${packageName}`
+      : packageName
+  const storagePackageName = isCrate
+    ? toStoragePackageName(packageName, true)
+    : registryEcosystem
+      ? `@skilld-${registryEcosystem}/${packageName}`
+      : packageName
 
   const spin = timedSpinner()
   spin.start(`Resolving ${packageSpec}`)
 
   const cwd = process.cwd()
-  const localDeps = isCrate ? [] : await readLocalDependencies(cwd).catch(() => [])
-  const localVersion = isCrate ? undefined : localDeps.find(d => d.name === packageName)?.version
+  const localDeps = isCrate || registryEcosystem ? [] : await readLocalDependencies(cwd).catch(() => [])
+  const localVersion = isCrate || registryEcosystem ? undefined : localDeps.find(d => d.name === packageName)?.version
 
   const resolveResult = isCrate
     ? await resolveCrateDocsWithAttempts(packageName, {
         version: requestedTag,
         onProgress: step => spin.message(`${identityPackageName}: ${step}`),
       })
+    : registryEcosystem
+      ? await resolveRegistryDocsWithAttempts(registryEcosystem, packageName, {
+          version: requestedTag,
+          onProgress: (step: string) => spin.message(`${identityPackageName}: ${step}`),
+        })
     : await resolvePackageDocsWithAttempts(requestedTag ? normalizedSpec : packageName, {
         version: localVersion,
         cwd,
@@ -307,13 +346,13 @@ async function syncSinglePackage(packageSpec: string, config: SyncConfig): Promi
   let resolved = resolveResult.package
 
   // If npm fails, check if it's a link: dep and try local resolution
-  if (!resolved && !isCrate) {
+  if (!resolved && !isCrate && !registryEcosystem) {
     spin.message(`Resolving local package: ${packageName}`)
     resolved = await resolveLocalDep(packageName, cwd)
   }
 
   if (!resolved) {
-    if (!isCrate) {
+    if (!isCrate && !registryEcosystem) {
       // Search npm for alternatives before giving up
       spin.message(`Searching npm for "${packageName}"...`)
       const suggestions = await searchNpmPackages(packageName)
@@ -346,7 +385,9 @@ async function syncSinglePackage(packageSpec: string, config: SyncConfig): Promi
     return
   }
 
-  const version = isCrate ? (resolved.version || requestedTag || 'latest') : (localVersion || resolved.version || 'latest')
+  const version = isCrate || registryEcosystem
+    ? (resolved.version || requestedTag || 'latest')
+    : (localVersion || resolved.version || 'latest')
   const versionKey = getVersionKey(version)
 
   // Force: nuke cached references + search index so all existsSync guards re-fetch
@@ -356,13 +397,13 @@ async function syncSinglePackage(packageSpec: string, config: SyncConfig): Promi
   const useCache = isCached(storagePackageName, version)
 
   // Download npm dist if not in node_modules (for standalone/learning use)
-  if (!isCrate && !existsSync(join(cwd, 'node_modules', packageName))) {
+  if (!isCrate && !registryEcosystem && !existsSync(join(cwd, 'node_modules', packageName))) {
     spin.message(`Downloading ${packageName}@${version} dist`)
     await fetchPkgDist(packageName, version)
   }
 
   // Shipped skills: symlink directly, skip all doc fetching/caching/LLM
-  const shippedResult = isCrate ? null : handleShippedSkills(packageName, version, cwd, config.agent, config.global)
+  const shippedResult = isCrate || registryEcosystem ? null : handleShippedSkills(packageName, version, cwd, config.agent, config.global)
   if (shippedResult) {
     const shared = !config.global && getSharedSkillsDir(cwd)
     for (const shipped of shippedResult.shipped) {
@@ -390,7 +431,7 @@ async function syncSinglePackage(packageSpec: string, config: SyncConfig): Promi
 
   // ── Merge mode: skill dir already exists with a different primary package (skip in eject) ──
   const existingLock = config.eject ? undefined : readLock(baseDir)?.skills[skillDirName]
-  const isMerge = existingLock && existingLock.packageName !== identityPackageName
+  const isMerge = !!(existingLock && existingLock.packageName && existingLock.packageName !== identityPackageName)
 
   if (isMerge) {
     spin.stop(`Merging ${identityPackageName} into ${skillDirName}`)
